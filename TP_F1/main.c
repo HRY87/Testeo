@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 #include "piloto.h"
 #include "carrera.h"
 
@@ -53,6 +54,8 @@ static int archivoExiste(const char *ruta)
 static void inicializarSistema()
 {
     printf("--- Inicializando sistema ---\n");
+
+    srand((unsigned)time(NULL));
 
     if (!archivoExiste(RUTA_PILOTO_TXT))
     {

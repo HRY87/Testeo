@@ -73,7 +73,10 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
         pos = *(unsigned*)obtenerElementoVector(&vIds, i);
 
         nueva->resultados[i][COL_ID_PILOTO] = pos;
-        nueva->resultados[i][COL_PUNTOS] = puntos_f1[i + 1];
+        /** Solo los primeros 10 puestos suman puntos en F1 **/
+        nueva->resultados[i][COL_PUNTOS] = (i < POS_LIMITE_PUNTOS_CARRERA)
+                                        ? puntos_f1[i + 1]
+                                        : 0;
     }
 
     destruirVector(&vIds);

@@ -108,7 +108,7 @@ void generarResultadoAleatorioVector(tVector* v)
     {
         j = (size_t)(rand() % (int)(i + 1));
 
-        intercambiar(obtenerElementoVector(v->vec, i),
-                     obtenerElementoVector(v->vec, j), v->tamElem);
+        intercambiar(obtenerElementoVector(v, i),
+                     obtenerElementoVector(v, j), v->tamElem);
     }
 }
