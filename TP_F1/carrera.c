@@ -7,7 +7,8 @@
 #include "vector.h"
 
 /**Esto hay que mejorarlo, por ahora lo dejo fijo**/
-static const int puntos_f1[11] = {
+static const int puntos_f1[11] =
+{
     0, 25, 18, 15, 12, 10, 8, 6, 4, 2, 1
 };
 
@@ -28,8 +29,12 @@ int registrarCarrera(const char* rutaCarrera, const char* rutaPiloto, Comparar c
     printf("\nNombre del circuito: ");
     scanf("%19s", nueva.circuito);
 
-    printf("\nFecha de la carrera (AAAAMMDD): ");
-    scanf("%llu", &nueva.fecha);
+    do
+    {
+        printf("\nFecha de la carrera (AAAAMMDD): ");
+        scanf("%llu", &nueva.fecha);
+    }while(!esFechaValida(nueva.fecha));
+
 
     if(cargarResultadosCarreraAleatorios(rutaPiloto, &nueva, comparar))
     {
@@ -75,8 +80,8 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
         nueva->resultados[i][COL_ID_PILOTO] = pos;
         /** Solo los primeros 10 puestos suman puntos en F1 **/
         nueva->resultados[i][COL_PUNTOS] = (i < POS_LIMITE_PUNTOS_CARRERA)
-                                        ? puntos_f1[i + 1]
-                                        : 0;
+                                           ? puntos_f1[i + 1]
+                                           : 0;
     }
 
     destruirVector(&vIds);

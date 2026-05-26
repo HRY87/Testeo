@@ -21,8 +21,7 @@ typedef struct {
     unsigned long long fechaNacimiento;
 }Piloto;
 
-
-int generarArchivoTxt(const char* rutaTxt);
+int generarArchivoPilotosTxt(const char* rutaTxt);
 int cargarArchivoPilotos(const char* pathTxt, const char* rutaBin);
 size_t listarPilotos(const char* rutaBin);
 //Usar filtre ???

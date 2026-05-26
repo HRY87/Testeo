@@ -59,7 +59,7 @@ static void inicializarSistema()
 
     if (!archivoExiste(RUTA_PILOTO_TXT))
     {
-        generarArchivoTxt(RUTA_PILOTO_TXT);
+        generarArchivoPilotosTxt(RUTA_PILOTO_TXT);
     }
     else
     {
