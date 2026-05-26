@@ -16,7 +16,9 @@ typedef int (*Accion)(void* accion, const void* dato);
 
 /**Funciones generales**/
 int copiarCadena(char* dest, const char* src, size_t n);
+int leerCadena(char* dest, size_t n);;
 void intercambiar(void* d1, void* d2, size_t tam);
+void limpiarBuffer(void);
 
 /**Funciones para Archivos**/
 int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem, size_t tamElem, Accion accion);

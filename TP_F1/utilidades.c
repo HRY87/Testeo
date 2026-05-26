@@ -29,6 +29,26 @@ int copiarCadena(char* dest, const char* src, size_t n)
     return TODO_OK;
 }
 
+int leerCadena(char* dest, size_t n)
+{
+    char* pos;
+
+    if(!dest || n == 0)
+        return ERR_CAD;
+
+    if(!fgets(dest, (int)n, stdin))
+        return ERR_CAD;
+
+    /** Reemplazar el \n que deja fgets por \0 **/
+    pos = dest;
+    while(*pos && *pos != '\n')
+        pos++;
+
+    *pos = '\0';
+
+    return TODO_OK;
+}
+
 void intercambiar(void* d1, void* d2, size_t tam)
 {
     void* aux = malloc(tam);
@@ -41,6 +61,12 @@ void intercambiar(void* d1, void* d2, size_t tam)
     memcpy(d2, aux, tam);
 
     free(aux);
+}
+
+void limpiarBuffer(void)
+{
+    int c;
+    while((c = getchar()) != '\n' && c != EOF);
 }
 
 /**Funciones para Archivos**/

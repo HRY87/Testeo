@@ -26,8 +26,11 @@ int registrarCarrera(const char* rutaCarrera, const char* rutaPiloto, Comparar c
     nueva.id = generarIdCarrera(fCarrera);
     nueva.estado = ESTADO_CARRERA_ACTIVA;
 
+    /**Limpiar el \n que dejo el scanf del menu**/
+    limpiarBuffer();
+
     printf("\nNombre del circuito: ");
-    scanf("%19s", nueva.circuito);
+    leerCadena(nueva.circuito, TAM_NOMBRE_CIRCUITO);
 
     do
     {
