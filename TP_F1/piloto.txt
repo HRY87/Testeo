@@ -1,0 +1,5 @@
+1,Max Verstappen,Neerlandes,1,0,A,20020930
+2,Lewis Hamilton,Britanico,2,0,A,19850107
+3,Charles Leclerc,Monegasco,3,0,A,19971016
+4,Carlos Sainz,Espanol,3,0,A,19940901
+5,Fernando Alonso,Espanol,4,0,A,19810729
