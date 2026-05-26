@@ -31,7 +31,7 @@ int registrarCarrera(const char* rutaCarrera, const char* rutaPiloto, Comparar c
     printf("\nFecha de la carrera (AAAAMMDD): ");
     scanf("%llu", &nueva.fecha);
 
-    if(!cargarResultadosCarreraAleatorios(rutaPiloto, &nueva, comparar))
+    if(cargarResultadosCarreraAleatorios(rutaPiloto, &nueva, comparar))
     {
         fclose(fCarrera);
         return ERR_ARCH;
@@ -49,10 +49,10 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
     tVector vIds;
     int i, pos;
 
-    if(!crearVector(&vIds, sizeof(unsigned), MAX_PILOTOS_CARRERA))
+    if(crearVector(&vIds, sizeof(unsigned), MAX_PILOTOS_CARRERA))
         return SIN_MEM;
 
-    if(!cargarVectorPilotoActivos(rutaPiloto, &vIds, comparar))
+    if(cargarVectorPilotoActivos(rutaPiloto, &vIds, comparar))
     {
         destruirVector(&vIds);
         return ERR_ARCH;
