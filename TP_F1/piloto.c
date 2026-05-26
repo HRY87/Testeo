@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include "piloto.h"
 #include "utilidades.h"
 
@@ -101,6 +100,38 @@ size_t listarPilotos(const char* rutaBin)
     return listados;
 }
 
+/**Funciones para manejo de datos TDA vector**/
+//Filter
+int esPilotoActivos(const void* dato)
+{
+    Piloto* p = (Piloto*)dato;
+
+    return(p->estado == ESTADO_ACTIVO_PILOTO);
+}
+
+//Reduce
+int sumarPuntos(void* acumulador, const void* dato)
+{
+    Piloto* p = (Piloto*)dato;
+
+    *(unsigned*)acumulador += p->puntos_acumulados;
+
+    return TODO_OK;
+}
+
+//Map
+int extraerIdPuntos(void* dest, const void* orig)
+{
+    unsigned* resultado = (unsigned*)dest;
+    Piloto* p = (Piloto*)orig;
+
+    resultado[COL_ID_PILOTO] = p->id;
+    resultado[COL_PUNTOS] = p->puntos_acumulados;
+
+    return TODO_OK;
+}
+
+
 int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar)
 {
     Piloto piloto;
@@ -120,3 +151,4 @@ int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar compa
 
     return TODO_OK;
 }
+

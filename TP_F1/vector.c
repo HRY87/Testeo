@@ -85,6 +85,123 @@ void* obtenerElementoVector(tVector* v, size_t pos)
     return( (char*)v-> vec + (pos * v->tamElem));
 }
 
+/**Funciones para vector-archivo**/
+int cargarVectorDesdeBin(const char* rutaBin, tVector* v)
+{
+    char* act = (char*)v->vec;
+    char* fin = (char*)v->vec + (v->tope * v->tamElem);
+
+    FILE* fBin = fopen(rutaBin, "rb");
+
+    if(!fBin)
+        return ERR_ARCH;
+
+    while(act < fin && fread(act, v->tamElem, 1, fBin) == 1)
+    {
+        v->ce++;
+        act += v->tamElem;
+    }
+
+    fclose(fBin);
+    return TODO_OK;
+}
+
+int guardarVectorEnBin(const char* rutaBin, tVector* v)
+{
+    char* act = (char*)v->vec;
+    char* fin = (char*)v->vec + (v->ce * v->tamElem);
+
+    FILE* fBin = fopen(rutaBin, "wb");
+
+    if(!fBin)
+        return ERR_ARCH;
+
+    while(act < fin)
+    {
+        fwrite(act, v->tamElem, 1, fBin);
+        act += v->tamElem;
+    }
+
+    fclose(fBin);
+    return TODO_OK;
+}
+
+/**Funciones genericas para manejo de datos**/
+int filtrarVector(tVector* origen, tVector* destino, Filter filtro)
+{
+    char* act;
+    char* fin;
+
+    if(!origen || !destino || !filtro)
+        return SIN_MEM;
+
+    act = (char*)origen->vec;
+    fin = (char*)origen->vec + (origen->ce * origen->tamElem);
+
+    while(act < fin)
+    {
+        if(filtro(act))
+        {
+            if(destino->ce == destino->tope)
+                return VEC_LLENO;
+
+            memcpy((char*)destino->vec + (destino->ce * destino->tamElem), act, destino->tamElem);
+            destino->ce++;
+        }
+        act += origen->tamElem;
+    }
+
+    return TODO_OK;
+}
+
+int reducirVector(tVector* v, void* acumulador, Reduce reducir)
+{
+    char* act;
+    char* fin;
+
+    if(!v || !acumulador || !reducir)
+        return SIN_MEM;
+
+    act = (char*)v->vec;
+    fin = (char*)v->vec + (v->ce * v->tamElem);
+
+    while(act < fin)
+    {
+        reducir(acumulador, act);
+        act += v->tamElem;
+    }
+
+    return TODO_OK;
+}
+
+int mapearVector(tVector* origen, tVector* destino, size_t tamDestino, Map mapear)
+{
+    char* actOrigen;
+    char* finOrigen;
+    char* actDestino;
+
+    if(!origen || !destino || !mapear)
+        return SIN_MEM;
+
+    if(origen->ce > destino->tope)
+        return VEC_LLENO;
+
+    actOrigen  = (char*)origen->vec;
+    finOrigen  = (char*)origen->vec + (origen->ce * origen->tamElem);
+    actDestino = (char*)destino->vec;
+
+    while(actOrigen < finOrigen)
+    {
+        mapear(actDestino, actOrigen);
+        actOrigen  += origen->tamElem;
+        actDestino += tamDestino;
+    }
+
+    destino->ce = origen->ce;
+
+    return TODO_OK;
+}
+
 /**Auxiliares**/
 void mostrarVector(tVector* v, Mostrar mostrar)
 {

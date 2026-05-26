@@ -4,9 +4,9 @@
 #include "piloto.h"
 #include "carrera.h"
 
-static void inicializarSistema();
+static void inicializarSistema(void);
 static int archivoExiste(const char *ruta);
-static int mostrarMenu();
+static int mostrarMenu(void);
 
 int main()
 {
@@ -51,7 +51,7 @@ static int archivoExiste(const char *ruta)
     return 1;
 }
 
-static void inicializarSistema()
+static void inicializarSistema(void)
 {
     printf("--- Inicializando sistema ---\n");
 
@@ -80,7 +80,7 @@ static void inicializarSistema()
     printf("----------------------------\n\n");
 }
 
-static int mostrarMenu()
+static int mostrarMenu(void)
 {
     int opcion;
 

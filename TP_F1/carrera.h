@@ -9,10 +9,9 @@
 #define TAM_NOMBRE_CIRCUITO         20
 #define MAX_PILOTOS_CARRERA         20
 
-#define COL_ID_PILOTO               0
-#define COL_PUNTOS                  1
 #define MAX_COL_RESULTADOS          2
 #define POS_LIMITE_PUNTOS_CARRERA   10
+
 typedef struct
 {
     int id;
