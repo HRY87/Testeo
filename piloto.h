@@ -35,4 +35,6 @@ int sumarPuntos(void* acumulador, const void* dato);
 int extraerIdPuntos(void* dest, const void* orig);
 
 int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar);
+
+int escribirPilotoTxt(void* accion, const void* dato);
 #endif // PILOTO_H_INCLUDED

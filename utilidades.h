@@ -30,5 +30,5 @@ int esFechaValida(unsigned long long fecha);
 
 /**Puntero a funcion**/
 int compararUnsigned(const void* a, const void* b);
-int escribirPilotoTxt(void* accion, const void* dato);
+
 #endif // UTILIDADES_H_INCLUDED

@@ -136,22 +136,4 @@ int compararUnsigned(const void* a, const void* b)
     return(*(unsigned*)a - *(unsigned*)b);
 }
 
-int escribirPilotoTxt(void* accion, const void* dato)
-{
-    FILE* txt = (FILE*)accion;
-    const Piloto* p = (const Piloto*)dato;
 
-    if(!txt || !p)
-        return ERR_ARCH;
-
-    fprintf(txt, "%u,%s,%s,%u,%u,%c,%llu\n",
-            p->id,
-            p->nombre,
-            p->nacionalidad,
-            p->id_escuderia,
-            p->puntos_acumulados,
-            p->estado,
-            p->fechaNacimiento);
-
-    return TODO_OK;
-}
