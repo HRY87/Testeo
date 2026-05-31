@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "piloto.h"
 #include "utilidades.h"
 
@@ -19,86 +20,8 @@ int generarArchivoPilotosTxt(const char* rutaTxt)
 
     return generarArchivoTexto(rutaTxt, lote, 10, sizeof(Piloto), escribirPilotoTxt);
 }
-int cargarArchivoPilotos(const char* rutaTxt, const char* rutaBin)
-{
-    Piloto piloto;
-    int camposLeidos = 0;
-    int total = 0;
 
-    /**Necesario para obtener las cadenas con fscanf**/
-    char bufferNombre[TAM_NOMBRE_PILOTO];
-    char bufferNacionalidad[TAM_NACIONALIDAD];
 
-    FILE* fTxt = fopen(rutaTxt, "rt");
-    FILE* fBin = fopen(rutaBin, "wb");
-
-    if(!fTxt)
-        return total;
-
-    if(!fBin)
-    {
-        fclose(fTxt);
-        return total;
-    }
-
-    camposLeidos = fscanf(fTxt,
-                          "%u,%29[^,],%29[^,],%u,%u ,%c,%llu\n",
-                          &piloto.id, bufferNombre, bufferNacionalidad,
-                          &piloto.id_escuderia, &piloto.puntos_acumulados,
-                          &piloto.estado,&piloto.fechaNacimiento);
-
-    /**Si estan todos los campos, ahi solo escribe**/
-    while(camposLeidos == 7)
-    {
-        copiarCadena(piloto.nombre, bufferNombre, TAM_NOMBRE_PILOTO);
-        copiarCadena(piloto.nacionalidad, bufferNacionalidad, TAM_NACIONALIDAD);
-
-        fwrite(&piloto, sizeof(Piloto), 1, fBin);
-        total++;
-
-        camposLeidos = fscanf(fTxt,
-                              "%u,%29[^,],%29[^,],%u,%u ,%c,%llu\n",
-                              &piloto.id, bufferNombre, bufferNacionalidad,
-                              &piloto.id_escuderia, &piloto.puntos_acumulados,
-                              &piloto.estado,&piloto.fechaNacimiento);
-    }
-
-    fclose(fTxt);
-    fclose(fBin);
-
-    return total;
-}
-size_t listarPilotos(const char* rutaBin)
-{
-    Piloto piloto;
-    size_t listados = 0;
-
-    FILE* fBin = fopen(rutaBin, "rb");
-
-    if(!fBin)
-        return listados;
-
-    printf("\n");
-    printf("=============================================================\n");
-    printf("  LISTADO DE PILOTOS - TEMPORADA\n");
-    printf("=============================================================\n");
-    printf("%-4s  %-28s  %-10s  %s\n",
-           "ID", "Nombre", "Estado", "Puntos");
-    printf("-------------------------------------------------------------\n");
-
-    while(fread(&piloto, sizeof(Piloto), 1, fBin) == 1)
-    {
-        printf("%-4u  %-28s  %-10c  %u\n",
-               piloto.id, piloto.nombre, piloto.estado, piloto.puntos_acumulados);
-
-        listados++;
-    }
-    printf("-------------------------------------------------------------\n");
-
-    fclose(fBin);
-
-    return listados;
-}
 
 /**Funciones para manejo de datos TDA vector**/
 //Filter
@@ -168,6 +91,68 @@ int escribirPilotoTxt(void* accion, const void* dato)
             p->puntos_acumulados,
             p->estado,
             p->fechaNacimiento);
+
+    return TODO_OK;
+}
+
+void mostrarPiloto(const void* dato)
+{
+    const Piloto* p = (const Piloto*)dato;
+
+    printf("----------------------------------\n");
+    printf("ID                 : %u\n",  p->id);
+    printf("Nombre             : %s\n",  p->nombre);
+    printf("Nacionalidad       : %s\n",  p->nacionalidad);
+    printf("ID Escuderia       : %u\n",  p->id_escuderia);
+    printf("Puntos Acumulados  : %u\n",  p->puntos_acumulados);
+    printf("Estado             : %s\n",  (p->estado == ESTADO_ACTIVO_PILOTO ? "Activo" :
+                                          (p->estado == ESTADO_RETIRADO_PILOTO ? "Retirado" : "Suspendido")));
+    printf("Fecha Nacimiento   : %llu\n", p->fechaNacimiento);
+
+}
+
+int trozarPilotoTxt(char* linea, void* reg)
+{
+    Piloto* p   = (Piloto*)reg;
+    char*   act = strchr(linea, '\n');
+
+    if(!act)
+        return ERR_LINEA;
+
+    *act = '\0';
+
+    /* fechaNacimiento */
+    act = strrchr(linea, ',');
+    sscanf(act + 1, "%llu", &p->fechaNacimiento);
+    *act = '\0';
+
+    /* estado */
+    act = strrchr(linea, ',');
+    p->estado = *(act + 1);
+    *act = '\0';
+
+    /* puntos_acumulados */
+    act = strrchr(linea, ',');
+    sscanf(act + 1, "%u", &p->puntos_acumulados);
+    *act = '\0';
+
+    /* id_escuderia */
+    act = strrchr(linea, ',');
+    sscanf(act + 1, "%u", &p->id_escuderia);
+    *act = '\0';
+
+    /* nacionalidad */
+    act = strrchr(linea, ',');
+    copiarCadena(p->nacionalidad, act + 1, TAM_NACIONALIDAD);
+    *act = '\0';
+
+    /* nombre */
+    act = strrchr(linea, ',');
+    copiarCadena(p->nombre, act + 1, TAM_NOMBRE_PILOTO);
+    *act = '\0';
+
+    /* id — lo que queda al inicio */
+    sscanf(linea, "%u", &p->id);
 
     return TODO_OK;
 }

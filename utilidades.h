@@ -3,7 +3,7 @@
 
 #define TODO_OK         0
 #define ERR_ARCH        1
-#define ERR_CAD         2
+#define ERR_LINEA         2
 #define NO_ENCONTRADO   4
 
 /**Defines para fecha**/
@@ -14,6 +14,10 @@ typedef int(*Comparar)(const void* d1, const void* d2);
 typedef void(*Mostrar)(const void* d);
 typedef int (*Accion)(void* accion, const void* dato);
 
+/**Puntero a funcion para conversion generico**/
+typedef void (*BinATxt)(const void* dato, FILE* archTxt);
+typedef int (*TxtABin)(char* linea, void* dato);
+
 /**Funciones generales**/
 int copiarCadena(char* dest, const char* src, size_t n);
 int leerCadena(char* dest, size_t n);;
@@ -22,7 +26,9 @@ void limpiarBuffer(void);
 
 /**Funciones para Archivos**/
 int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem, size_t tamElem, Accion accion);
-int mostrarArchivoBinario(const char* rutaBin, void* dato, size_t tamElem, Mostrar mostrar);
+int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tamElem, BinATxt binATxt);
+int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin txtABin);
+int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar);
 
 /**Funciones para fecha**/
 int diasPorMes(unsigned mes, unsigned anio);

@@ -3,15 +3,14 @@
 #include <time.h>
 #include "piloto.h"
 #include "carrera.h"
+#include "escuderia.h"
 
 static void inicializarSistema(void);
-static int archivoExiste(const char *ruta);
 static int mostrarMenu(void);
 
 int main()
 {
     int opcion;
-    Carrera carrera;
 
     inicializarSistema();
 
@@ -23,12 +22,12 @@ int main()
         {
         case 1:
             recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
-            listarPilotos(RUTA_PILOTO_BIN);
+            mostrarArchivoBinario(RUTA_PILOTO_BIN, sizeof(Piloto), mostrarPiloto);
             break;
         case 2:
             registrarCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, compararUnsigned);
             recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
-            mostrarArchivoBinario(RUTA_CARRERA_BIN, &carrera, sizeof(Carrera), mostrarCarrera);
+            mostrarArchivoBinario(RUTA_CARRERA_BIN, sizeof(Carrera), mostrarCarrera);
             break;
         default:
             printf("[!] Opcion invalida.\n\n");
@@ -41,17 +40,6 @@ int main()
     return 0;
 }
 
-static int archivoExiste(const char *ruta)
-{
-    FILE *f = fopen(ruta, "r");
-
-    if (f == NULL)
-    {
-        return 0;
-    }
-    fclose(f);
-    return 1;
-}
 
 static void inicializarSistema(void)
 {
@@ -59,24 +47,25 @@ static void inicializarSistema(void)
 
     srand((unsigned)time(NULL));
 
-    if (!archivoExiste(RUTA_PILOTO_TXT))
+    /**Creacion de lote de prueba para PILOTO**/
+    if(generarArchivoPilotosTxt(RUTA_PILOTO_TXT) == TODO_OK)
     {
-        generarArchivoPilotosTxt(RUTA_PILOTO_TXT);
-    }
-    else
-    {
-        printf("[OK] '%s' ya existe, se omite generacion.\n",
-               RUTA_PILOTO_TXT);
+        printf("[OK] Se genero '%s'.\n", RUTA_PILOTO_TXT);
+
+        if(convertirArchivoTxtABin(RUTA_PILOTO_TXT, RUTA_PILOTO_BIN, sizeof(Piloto), trozarPilotoTxt) == TODO_OK)
+        {
+            printf("[OK] Se genero '%s'.\n", RUTA_PILOTO_BIN);
+        }
     }
 
-    if (!archivoExiste(RUTA_PILOTO_BIN))
+     /**Creacion de lote de prueba para ESCUDERIA**/
+    if(generarArchivoEscuderiasTxt(RUTA_ESCUDERIA_TXT) == TODO_OK)
     {
-        cargarArchivoPilotos(RUTA_PILOTO_TXT, RUTA_PILOTO_BIN);
-    }
-    else
-    {
-        printf("[OK] '%s' ya existe, se omite carga.\n",
-               RUTA_PILOTO_BIN);
+        printf("[OK] Se genero '%s'.\n", RUTA_ESCUDERIA_TXT);
+        if(convertirArchivoTxtABin(RUTA_ESCUDERIA_TXT, RUTA_ESCUDERIA_BIN, sizeof(Escuderia), trozarEscuderiaTxt) == TODO_OK)
+        {
+            printf("[OK] Se genero '%s'.\n", RUTA_ESCUDERIA_BIN);
+        }
     }
 
     printf("----------------------------\n\n");

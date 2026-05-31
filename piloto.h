@@ -36,5 +36,8 @@ int extraerIdPuntos(void* dest, const void* orig);
 
 int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar);
 
+/**Puntero a Funcion**/
 int escribirPilotoTxt(void* accion, const void* dato);
+void mostrarPiloto(const void* dato);
+int trozarPilotoTxt(char* linea, void* reg);
 #endif // PILOTO_H_INCLUDED
