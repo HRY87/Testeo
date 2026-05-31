@@ -133,7 +133,6 @@ int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tam
     return TODO_OK;
 }
 
-
 int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin txtABin)
 {
     int resp = TODO_OK;
@@ -187,6 +186,34 @@ int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tam
     return TODO_OK;
 }
 
+int procesarArchivoBinario(const char* rutaBin, void* datos, size_t tamElem, Filter filtrar, Accion procesar)
+{
+    void* reg;
+
+    FILE* fBin = fopen(rutaBin, "rb");
+
+    if(!fBin)
+        return ERR_ARCH;
+
+    reg = malloc(tamElem);
+
+    if(!reg || !filtrar)
+    {
+        fclose(fBin);
+        return SIN_MEM;
+    }
+
+    while(fread(reg, tamElem, 1, fBin))
+    {
+        if(filtrar(reg))
+            procesar(datos, reg);
+    }
+
+    free(reg);
+    fclose(fBin);
+
+    return TODO_OK;
+}
 int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar)
 {
     FILE* fBin = fopen(rutaBin, "rb");

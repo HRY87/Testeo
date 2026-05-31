@@ -12,9 +12,7 @@
 #define ES_VECTOR_LLENO(X,Y)    ((X) == (Y) ? VEC_LLENO : 0)
 #define ES_VECTOR_VACIO(X)      ((X) == 0 ? VEC_VACIO : 0)
 
-typedef int(*Map)(void* destino, const void* origen);
-typedef int(*Filter)(const void* dato);
-typedef int(*Reduce)(void* acumulador, const void* dato);
+
 
 typedef struct
 {

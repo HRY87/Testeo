@@ -28,8 +28,12 @@ int registrarCarrera(const char* rutaCarrera, const char* rutaPiloto, Comparar c
 int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Comparar comparar);
 int generarIdCarrera(FILE* fCarrera);
 
-int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto);
+int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto, Filter filtrar, Reduce reducir);
+int actualizarPuntosUltimaCarrera(const char* rutaCarrera, const char* rutaPiloto, Filter filtrar, Reduce reducir);
 
 /**Puntero a funcion**/
 void mostrarCarrera(const void *dato);
+int filterEsCarreraActiva(const void* dato);
+int reduceAcumularPuntosCarrera(void* acumulador, const void* dato);
+
 #endif // CARRERA_H_INCLUDED

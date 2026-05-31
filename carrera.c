@@ -5,6 +5,8 @@
 #include "piloto.h"
 #include "vector.h"
 
+#define POS_SIN_PUNTOS          0
+
 //Esto hay que mejorarlo, por ahora lo dejo fijo
 static const int puntos_f1[11] =
 {
@@ -52,6 +54,20 @@ int registrarCarrera(const char* rutaCarrera, const char* rutaPiloto, Comparar c
     return TODO_OK;
 }
 
+int cargarVectorPilotos(const char* rutaPiloto, tVector* vPilotos)
+{
+    if(crearVector(vPilotos, sizeof(Piloto), MAX_PILOTOS_CARRERA))
+        return SIN_MEM;
+
+    if(cargarVectorDesdeBin(rutaPiloto, vPilotos))
+    {
+        destruirVector(vPilotos);
+        return ERR_ARCH;
+    }
+
+    return TODO_OK;
+}
+
 int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Comparar comparar)
 {
     tVector vIds;
@@ -84,7 +100,7 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
         /** Solo los primeros 10 puestos suman puntos en F1 **/
         nueva->resultados[i][COL_PUNTOS] = (i < POS_LIMITE_PUNTOS_CARRERA)
                                            ? puntos_f1[i + 1]
-                                           : 0;
+                                           : puntos_f1[POS_SIN_PUNTOS];
     }
 
     destruirVector(&vIds);
@@ -92,26 +108,21 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
     return TODO_OK;
 }
 
-int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto)
+/**
+recalcularPuntosPilotos
+Uso: inicio de temporada o cuando se cancela una cerrera. Realiza calculo desde 0
+Resetea todos los puntos y recorre el archivo completo de carrera.
+**/
+int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto, Filter filtrar, Reduce reducir)
 {
-    tVector  vPilotos, vCarreras;
-    Carrera* carrera; //Puntero auxiliar
-    Piloto*  piloto; //Puntero auxiliar
-    char    *act, *fin; //Lectura byte a byte
-    unsigned idBuscar;
-    size_t      i;
+    tVector vPilotos;
+    char *act, *fin;
 
-    /** 1. Cargar pilotos en memoria **/
-    if(crearVector(&vPilotos, sizeof(Piloto), 20))
-        return SIN_MEM;
-
-    if(cargarVectorDesdeBin(rutaPiloto, &vPilotos))
-    {
-        destruirVector(&vPilotos);
+    /**1- Crear y cargar el vector con los pilotos activos**/
+    if(cargarVectorPilotos(rutaPiloto, &vPilotos))
         return ERR_ARCH;
-    }
 
-    /** 2. Seteo su valor a 0, para evitar basura **/
+    /**2- Resetemos puntos: Necesario porque para este caso hacemos calculo desde cero**/
     act = (char*)vPilotos.vec;
     fin = act + (vPilotos.ce * vPilotos.tamElem);
 
@@ -121,59 +132,51 @@ int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto)
         act += vPilotos.tamElem;
     }
 
-    /** 3. Cargar carreras en memoria **/
-    if(crearVector(&vCarreras, sizeof(Carrera), MAX_CARRERAS_TEMPORADA))
-    {
-        destruirVector(&vPilotos);
-        return SIN_MEM;
-    }
+    /**Procesamos el archivo Carrera: Para cada carrera activa, acumulamos el puntaje**/
+    procesarArchivoBinario(rutaCarrera, &vPilotos, sizeof(Carrera), filtrar, reducir);
 
-    /** Si no hay carreras aun, guardamos pilotos con puntos en 0 y salimos **/
-    if(cargarVectorDesdeBin(rutaCarrera, &vCarreras))
-    {
-        guardarVectorEnBin(rutaPiloto, &vPilotos);
-        destruirVector(&vPilotos);
-        destruirVector(&vCarreras);
-        return TODO_OK;
-    }
-
-    /** 4. Recorrer carreras y acumulamos sus puntos **/
-    act = (char*)vCarreras.vec;
-    fin = act + (vCarreras.ce * vCarreras.tamElem);
-
-    /**5. Actualizamos sus puntos acumulados**/
-    while(act < fin)
-    {
-        carrera = (Carrera*)act;
-
-        //Demasiadas condiciones, buscar una alternativa
-        if(carrera->estado == ESTADO_CARRERA_ACTIVA)
-        {
-            for(i = 0; i < carrera->cant_resultados; i++)
-            {
-                if(carrera->resultados[i][COL_PUNTOS] > 0)
-                {
-                    idBuscar = (unsigned)carrera->resultados[i][COL_ID_PILOTO];
-
-                    /** El vector debe estar ordenado por id **/
-                    piloto = (Piloto*)busquedaBinariaVector(&vPilotos,
-                                                            &idBuscar,
-                                                            compararUnsigned);
-                    if(piloto)
-                        piloto->puntos_acumulados += (unsigned)carrera->resultados[i][COL_PUNTOS];
-                }
-            }
-        }
-        act += vCarreras.tamElem;
-    }
-
-    /** 6. Guardar y liberar memoria **/
     guardarVectorEnBin(rutaPiloto, &vPilotos);
     destruirVector(&vPilotos);
-    destruirVector(&vCarreras);
 
     return TODO_OK;
 }
+
+/**
+ActualizarPuntosUltimaCarrera
+Uso: inmediatamente despues de registrar una carrera nueva
+El archivo piloto, deberia tener los puntos correctos de carreras anteriores
+Por lo que solo agrego los puntos de la ultima carrera (sin resetear)
+**/
+int actualizarPuntosUltimaCarrera(const char* rutaCarrera, const char* rutaPiloto, Filter filtrar, Reduce reducir)
+{
+    tVector vPilotos;
+    Carrera carrera;
+    FILE* fCarrera;
+
+    if(cargarVectorPilotos(rutaPiloto, &vPilotos))
+        return SIN_MEM;
+
+    fCarrera = fopen(rutaCarrera, "rb");
+
+    if(!fCarrera)
+    {
+        destruirVector(&vPilotos);
+        return ERR_ARCH;
+    }
+
+    /**Me posicion directamente  en la ultima carrera**/
+    fseek(fCarrera, -(long)sizeof(Carrera), SEEK_END);
+    fread(&carrera, sizeof(Carrera), 1, fCarrera);
+
+    if(filtrar(&carrera))
+        reducir(&vPilotos, &carrera);
+
+    guardarVectorEnBin(rutaPiloto, &vPilotos);
+    destruirVector(&vPilotos);
+
+    return TODO_OK;
+}
+
 int generarIdCarrera(FILE* fCarrera)
 {
     Carrera ultima;
@@ -218,4 +221,35 @@ void mostrarCarrera(const void *dato)
                c->resultados[i][COL_ID_PILOTO],    /* columna 0          */
                c->resultados[i][COL_PUNTOS]);      /* columna 1          */
     }
+}
+
+int filterEsCarreraActiva(const void* dato)
+{
+    const Carrera* c = (const Carrera*)dato;
+
+    return(c->estado == ESTADO_CARRERA_ACTIVA);
+}
+
+int reduceAcumularPuntosCarrera(void* acumulador, const void* dato)
+{
+    tVector* vPilotos = (tVector*)acumulador;
+    Carrera* carrera = (Carrera*)dato;
+    Piloto* piloto;
+    unsigned idBuscar;
+    size_t i;
+
+    for(i = 0; i < carrera->cant_resultados; i++)
+    {
+        idBuscar = (unsigned)carrera->resultados[i][COL_ID_PILOTO];
+
+        /**Vector ordenado por id**/
+        piloto = (Piloto*)busquedaBinariaVector(vPilotos, &idBuscar, compararUnsigned);
+
+        if(piloto)
+        {
+            piloto->puntos_acumulados += (unsigned)carrera->resultados[i][COL_PUNTOS];
+        }
+    }
+
+    return TODO_OK;
 }

@@ -3,7 +3,7 @@
 
 #define TODO_OK         0
 #define ERR_ARCH        1
-#define ERR_LINEA         2
+#define ERR_LINEA       2
 #define NO_ENCONTRADO   4
 
 /**Defines para fecha**/
@@ -12,7 +12,12 @@
 
 typedef int(*Comparar)(const void* d1, const void* d2);
 typedef void(*Mostrar)(const void* d);
+
 typedef int (*Accion)(void* accion, const void* dato);
+
+typedef int(*Map)(void* destino, const void* origen);
+typedef int(*Filter)(const void* dato);
+typedef int(*Reduce)(void* acumulador, const void* dato);
 
 /**Puntero a funcion para conversion generico**/
 typedef void (*BinATxt)(const void* dato, FILE* archTxt);
@@ -28,6 +33,7 @@ void limpiarBuffer(void);
 int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem, size_t tamElem, Accion accion);
 int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tamElem, BinATxt binATxt);
 int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin txtABin);
+int procesarArchivoBinario(const char* rutaBin, void* datos, size_t tamElem, Filter filtrar, Accion procesar);
 int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar);
 
 /**Funciones para fecha**/

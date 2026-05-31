@@ -27,7 +27,6 @@ typedef struct {
 
 int generarArchivoPilotosTxt(const char* rutaTxt);
 int cargarArchivoPilotos(const char* pathTxt, const char* rutaBin);
-size_t listarPilotos(const char* rutaBin);
 
 /**Funciones para manejo de datos TDA vector**/
 int esPilotoActivos(const void* dato);

@@ -21,12 +21,12 @@ int main()
         switch (opcion)
         {
         case 1:
-            recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
+            recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, filterEsCarreraActiva, reduceAcumularPuntosCarrera);
             mostrarArchivoBinario(RUTA_PILOTO_BIN, sizeof(Piloto), mostrarPiloto);
             break;
         case 2:
             registrarCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, compararUnsigned);
-            recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
+            actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, filterEsCarreraActiva, reduceAcumularPuntosCarrera);
             mostrarArchivoBinario(RUTA_CARRERA_BIN, sizeof(Carrera), mostrarCarrera);
             break;
         default:
