@@ -1,8 +1,18 @@
-#include <stdio.h>
 #include <string.h>
-#include "piloto.h"
 #include "utilidades.h"
+#include "piloto.h"
 
+/* =========================================================
+   Lote de prueba inicial (10 pilotos temporada 2026)
+   ========================================================= */
+
+/**
+ * generarArchivoPilotosTxt
+ * Crea el archivo piloto.txt con el lote de prueba inicial.
+ * Usa generarArchivoTexto() + escribirPilotoTxt() para no
+ * duplicar logica de escritura CSV.
+ * Retorna TODO_OK o ERR_ARCH.
+ */
 int generarArchivoPilotosTxt(const char* rutaTxt)
 {
     Piloto lote[10] = {
@@ -21,96 +31,48 @@ int generarArchivoPilotosTxt(const char* rutaTxt)
     return generarArchivoTexto(rutaTxt, lote, 10, sizeof(Piloto), escribirPilotoTxt);
 }
 
+/* =========================================================
+   Operaciones con vector
+   ========================================================= */
 
-
-/**Funciones para manejo de datos TDA vector**/
-//Filter
-int esPilotoActivos(const void* dato)
-{
-    Piloto* p = (Piloto*)dato;
-
-    return(p->estado == ESTADO_ACTIVO_PILOTO);
-}
-
-//Reduce
-int sumarPuntos(void* acumulador, const void* dato)
-{
-    Piloto* p = (Piloto*)dato;
-
-    *(unsigned*)acumulador += p->puntos_acumulados;
-
-    return TODO_OK;
-}
-
-//Map
-int extraerIdPuntos(void* dest, const void* orig)
-{
-    unsigned* resultado = (unsigned*)dest;
-    Piloto* p = (Piloto*)orig;
-
-    resultado[COL_ID_PILOTO] = p->id;
-    resultado[COL_PUNTOS] = p->puntos_acumulados;
-
-    return TODO_OK;
-}
-
-
-int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar)
+/**
+ * cargarVectorPilotoActivos
+ * Lee piloto.bin y carga en vIds (vector de unsigned) los IDs
+ * de los pilotos activos, manteniendolos ordenados con cmp.
+ * El vector vIds debe estar creado previamente.
+ */
+int cargarVectorPilotoActivos(const char* rutaBin,
+                              tVector*    vIds,
+                              Comparar    comparar)
 {
     Piloto piloto;
+    FILE*  fPiloto;
 
-    FILE* fPiloto = fopen(rutaBin, "rb");
-
-    if(!fPiloto)
+    fPiloto = fopen(rutaBin, "rb");
+    if (!fPiloto)
         return ERR_ARCH;
 
-    while(fread(&piloto, sizeof(Piloto), 1, fPiloto) == 1)
+    while (fread(&piloto, sizeof(Piloto), 1, fPiloto) == 1)
     {
-        if(piloto.estado == ESTADO_ACTIVO_PILOTO)
-            insertarVectorOrd(vIds, & piloto.id, comparar);
+        if (piloto.estado == ESTADO_ACTIVO_PILOTO)
+            insertarVectorOrd(vIds, &piloto.id, comparar);
     }
 
     fclose(fPiloto);
-
     return TODO_OK;
 }
 
-int escribirPilotoTxt(void* accion, const void* dato)
-{
-    FILE* txt = (FILE*)accion;
-    const Piloto* p = (const Piloto*)dato;
+/* =========================================================
+   Punteros a funcion del TDA Piloto
+   ========================================================= */
 
-    if(!txt || !p)
-        return ERR_ARCH;
-
-    fprintf(txt, "%u,%s,%s,%u,%u,%c,%llu\n",
-            p->id,
-            p->nombre,
-            p->nacionalidad,
-            p->id_escuderia,
-            p->puntos_acumulados,
-            p->estado,
-            p->fechaNacimiento);
-
-    return TODO_OK;
-}
-
-void mostrarPiloto(const void* dato)
-{
-    const Piloto* p = (const Piloto*)dato;
-
-    printf("----------------------------------\n");
-    printf("ID                 : %u\n",  p->id);
-    printf("Nombre             : %s\n",  p->nombre);
-    printf("Nacionalidad       : %s\n",  p->nacionalidad);
-    printf("ID Escuderia       : %u\n",  p->id_escuderia);
-    printf("Puntos Acumulados  : %u\n",  p->puntos_acumulados);
-    printf("Estado             : %s\n",  (p->estado == ESTADO_ACTIVO_PILOTO ? "Activo" :
-                                          (p->estado == ESTADO_RETIRADO_PILOTO ? "Retirado" : "Suspendido")));
-    printf("Fecha Nacimiento   : %llu\n", p->fechaNacimiento);
-
-}
-
+/**
+ * trozarPilotoTxt  [TxtABin]
+ * Parsea una linea CSV con el formato:
+ *   id,nombre,nacionalidad,id_escuderia,puntos,estado,fechaNac
+ * Carga los datos en el registro apuntado por 'reg'.
+ * Retorna TODO_OK si se leyeron los 7 campos, ERR_LINEA si no.
+ */
 int trozarPilotoTxt(char* linea, void* reg)
 {
     Piloto* p   = (Piloto*)reg;
@@ -156,3 +118,90 @@ int trozarPilotoTxt(char* linea, void* reg)
 
     return TODO_OK;
 }
+
+/**
+ * pilotoBinATxt  [BinATxt]
+ * Escribe un Piloto en formato CSV en el archivo de texto.
+ * Firma compatible con el typedef BinATxt de utilidades.h.
+ */
+void pilotoBinATxt(const void* dato, FILE* archTxt)
+{
+    const Piloto* p = (const Piloto*)dato;
+
+    fprintf(archTxt, "%u,%s,%s,%u,%u,%c,%llu\n",
+            p->id,
+            p->nombre,
+            p->nacionalidad,
+            p->id_escuderia,
+            p->puntos_acumulados,
+            p->estado,
+            p->fechaNacimiento);
+}
+
+/**
+ * escribirPilotoTxt  [Accion]
+ * Misma logica que pilotoBinATxt pero con la firma Accion:
+ *   int f(void* contexto, const void* dato)
+ * Se usa con generarArchivoTexto() para el lote inicial.
+ */
+int escribirPilotoTxt(void* archTxt, const void* dato)
+{
+    pilotoBinATxt(dato, (FILE*)archTxt);
+    return TODO_OK;
+}
+
+/**
+ * mostrarPiloto  [Mostrar]
+ * Imprime un Piloto formateado por pantalla.
+ * Se pasa a mostrarArchivoBinario() para el listado.
+ */
+void mostrarPiloto(const void* dato)
+{
+    const Piloto* p = (const Piloto*)dato;
+
+    printf("%-4u  %-28s  %-12s  Esc:%-2u  Pts:%-4u  [%c]\n",
+           p->id,
+           p->nombre,
+           p->nacionalidad,
+           p->id_escuderia,
+           p->puntos_acumulados,
+           p->estado);
+}
+
+/**
+ * esPilotoActivo  [Filter]
+ * Retorna 1 si el piloto tiene estado ACTIVO, 0 si no.
+ * Se usa para filtrar pilotos en operaciones de vector/archivo.
+ */
+int esPilotoActivo(const void* dato)
+{
+    return (((const Piloto*)dato)->estado == ESTADO_ACTIVO_PILOTO);
+}
+
+/**
+ * sumarPuntos  [Reduce]
+ * Acumula los puntos de un piloto en un unsigned*.
+ * Uso: reducirVector(&vPilotos, &total, sumarPuntos)
+ */
+int sumarPuntos(void* acumulador, const void* dato)
+{
+    *(unsigned*)acumulador += ((const Piloto*)dato)->puntos_acumulados;
+    return TODO_OK;
+}
+
+/**
+ * extraerIdPuntos  [Map]
+ * Transforma un Piloto en un array unsigned[2] = {id, puntos}.
+ * Uso: mapearVector(&vPilotos, &vResultados, sizeof(unsigned[2]), extraerIdPuntos)
+ */
+int extraerIdPuntos(void* dest, const void* orig)
+{
+    unsigned*     resultado = (unsigned*)dest;
+    const Piloto* p         = (const Piloto*)orig;
+
+    resultado[COL_ID_PILOTO] = p->id;
+    resultado[COL_PUNTOS]    = p->puntos_acumulados;
+
+    return TODO_OK;
+}
+

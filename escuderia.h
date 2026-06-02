@@ -1,30 +1,64 @@
 #ifndef ESCUDERIA_H_INCLUDED
 #define ESCUDERIA_H_INCLUDED
 
-#define TAM_CODIGO                  4
-#define TAM_NOMBRE_ESCUDERIA        30
-#define TAM_PAIS                    50
+#include "utilidades.h"
 
-#define ESTADO_ESCUDERIA_INACTIVA   0
-#define ESTADO_ESCUDERIA_ACTIVA     1
+/* =========================================================
+   Rutas de archivos del TDA Escuderia
+   ========================================================= */
+#define RUTA_ESCUDERIA_TXT  "escuderia.txt"
+#define RUTA_ESCUDERIA_BIN  "escuderia.bin"
 
-#define RUTA_ESCUDERIA_BIN          "escuderia.bin"
-#define RUTA_ESCUDERIA_TXT          "escuderia.txt"
+/* =========================================================
+   Estados de la escuderia (campo 'estado')
+   ========================================================= */
+#define ESTADO_ESCUDERIA_ACTIVA   1
+#define ESTADO_ESCUDERIA_INACTIVA 0
 
+/* =========================================================
+   Tamanios de campos de cadena
+   ========================================================= */
+#define TAM_CODIGO           4
+#define TAM_NOMBRE_ESCUDERIA 30
+#define TAM_PAIS             50
+
+/* =========================================================
+   Estructura Escuderia
+   Corresponde exactamente al registro binario en escuderia.bin
+   ========================================================= */
 typedef struct
 {
     unsigned id;
-    char codigo[TAM_CODIGO];
-    char nombre[TAM_NOMBRE_ESCUDERIA];
-    char pais[TAM_PAIS];
-    int estado; /** 1 o 0**/
-}Escuderia;
+    char     codigo[TAM_CODIGO];
+    char     nombre[TAM_NOMBRE_ESCUDERIA];
+    char     pais[TAM_PAIS];
+    int      estado;  /* 1: activa, 0: inactiva */
+} Escuderia;
 
+/* =========================================================
+   Generacion de archivos (inicializacion)
+   ========================================================= */
+
+/* Genera el lote inicial de prueba en escuderia.txt */
 int generarArchivoEscuderiasTxt(const char* rutaTxt);
 
-/** Punteros a funcion **/
-int escribirEscuderiaTxt(void* accion, const void* dato);
+/* =========================================================
+   Punteros a funcion del TDA Escuderia
+   ========================================================= */
+
+/* TxtABin: parsea una linea CSV y carga una Escuderia */
+int  trozarEscuderiaTxt(char* linea, void* reg);
+
+/* BinATxt: escribe una Escuderia en formato CSV al txt */
+void escuderiaBinATxt(const void* dato, FILE* archTxt);
+
+/* Accion (para generarArchivoTexto): escribe Escuderia en FILE* */
+int  escribirEscuderiaTxt(void* archTxt, const void* dato);
+
+/* Mostrar: imprime una Escuderia formateada por pantalla */
 void mostrarEscuderia(const void* dato);
-int trozarEscuderiaTxt(char* linea, void* reg);
+
+/* Filter: retorna 1 si la escuderia esta activa */
+int  esEscuderiaActiva(const void* dato);
 
 #endif // ESCUDERIA_H_INCLUDED
