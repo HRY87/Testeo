@@ -1,0 +1,6 @@
+1|RBR|Red Bull Racing|Austria|1
+2|MCL|McLaren|Reino Unido|1
+3|FER|Ferrari|Italia|1
+4|WLF|Williams|Reino Unido|1
+5|AMR|Aston Martin|Reino Unido|1
+6|SAU|Sauber|Suiza|1

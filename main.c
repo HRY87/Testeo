@@ -6,11 +6,11 @@
 #include "carrera.h"
 
 /* =========================================================
-   Prototipos de funciones de menu e inicializacion
-   (static: solo visibles en este archivo)
+   Prototipos internos
    ========================================================= */
 static void inicializarSistema(void);
 static int  mostrarMenu(void);
+static int  mostrarSubMenuCarrera(void);
 
 /* =========================================================
    Punto de entrada
@@ -18,16 +18,16 @@ static int  mostrarMenu(void);
 int main(void)
 {
     int opcion;
+    int subOpcion;
 
     inicializarSistema();
-
     opcion = mostrarMenu();
 
     while (opcion != 0)
     {
         switch (opcion)
         {
-        /* Funcionalidad 1: listar pilotos con sus puntos actuales */
+        /* --- 1. Listar pilotos con puntos recalculados --- */
         case 1:
             recalcularPuntosPilotos(RUTA_CARRERA_BIN,
                                     RUTA_PILOTO_BIN,
@@ -40,22 +40,54 @@ int main(void)
                                   mostrarPiloto);
             break;
 
-        /* Funcionalidad 2: registrar carrera y actualizar puntos */
+        /* --- 2. Registrar carrera (manual o aleatoria) --- */
         case 2:
-            if (registrarCarrera(RUTA_CARRERA_BIN,
-                                 RUTA_PILOTO_BIN,
-                                 compararUnsigned) == TODO_OK)
-            {
-                actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,
-                                             RUTA_PILOTO_BIN,
-                                             filterEsCarreraActiva,
-                                             reduceAcumularPuntosCarrera);
+            subOpcion = mostrarSubMenuCarrera();
 
-                printf("\n=== CARRERAS REGISTRADAS ===\n");
-                mostrarArchivoBinario(RUTA_CARRERA_BIN,
-                                      sizeof(Carrera),
-                                      mostrarCarrera);
+            if (subOpcion == 1)
+            {
+                if (registrarCarreraAleatoria(RUTA_CARRERA_BIN,
+                                              RUTA_PILOTO_BIN,
+                                              RUTA_SANCION_BIN,
+                                              compararUnsigned) == TODO_OK)
+                {
+                    actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,
+                                                 RUTA_PILOTO_BIN,
+                                                 filterEsCarreraActiva,
+                                                 reduceAcumularPuntosCarrera);
+                    printf("\n=== CARRERAS REGISTRADAS ===\n");
+                    listarTodasLasCarreras(RUTA_CARRERA_BIN);
+                }
             }
+            else if (subOpcion == 2)
+            {
+                if (registrarCarreraManual(RUTA_CARRERA_BIN,
+                                           RUTA_PILOTO_BIN,
+                                           RUTA_SANCION_BIN,
+                                           compararUnsigned) == TODO_OK)
+                {
+                    actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,
+                                                 RUTA_PILOTO_BIN,
+                                                 filterEsCarreraActiva,
+                                                 reduceAcumularPuntosCarrera);
+                    printf("\n=== CARRERAS REGISTRADAS ===\n");
+                    listarTodasLasCarreras(RUTA_CARRERA_BIN);
+                }
+            }
+            break;
+
+        /* --- 3. Listar escuderias --- */
+        case 3:
+            printf("\n=== ESCUDERIAS ===\n");
+            mostrarArchivoBinario(RUTA_ESCUDERIA_BIN,
+                                  sizeof(Escuderia),
+                                  mostrarEscuderia);
+            break;
+
+        /* --- 4. Listar todas las carreras --- */
+        case 4:
+            printf("\n=== CARRERAS DE LA TEMPORADA ===\n");
+            listarTodasLasCarreras(RUTA_CARRERA_BIN);
             break;
 
         default:
@@ -72,9 +104,6 @@ int main(void)
 
 /* =========================================================
    Inicializacion del sistema
-   Genera los archivos de texto y binarios si no existen.
-   Se regeneran SIEMPRE en esta version de prueba para
-   garantizar datos limpios al arrancar.
    ========================================================= */
 static void inicializarSistema(void)
 {
@@ -82,7 +111,7 @@ static void inicializarSistema(void)
 
     srand((unsigned)time(NULL));
 
-    /* Lote de prueba PILOTO: txt -> bin */
+    /* Piloto: txt -> bin (siempre regenera para datos limpios) */
     if (generarArchivoPilotosTxt(RUTA_PILOTO_TXT) == TODO_OK)
     {
         printf("[OK] Generado '%s'\n", RUTA_PILOTO_TXT);
@@ -91,12 +120,10 @@ static void inicializarSistema(void)
                                     RUTA_PILOTO_BIN,
                                     sizeof(Piloto),
                                     trozarPilotoTxt) == TODO_OK)
-        {
             printf("[OK] Generado '%s'\n", RUTA_PILOTO_BIN);
-        }
     }
 
-    /* Lote de prueba ESCUDERIA: txt -> bin */
+    /* Escuderia: txt -> bin */
     if (generarArchivoEscuderiasTxt(RUTA_ESCUDERIA_TXT) == TODO_OK)
     {
         printf("[OK] Generado '%s'\n", RUTA_ESCUDERIA_TXT);
@@ -105,30 +132,46 @@ static void inicializarSistema(void)
                                     RUTA_ESCUDERIA_BIN,
                                     sizeof(Escuderia),
                                     trozarEscuderiaTxt) == TODO_OK)
-        {
             printf("[OK] Generado '%s'\n", RUTA_ESCUDERIA_BIN);
-        }
     }
 
     printf("----------------------------\n\n");
 }
 
 /* =========================================================
-                        Menu principal
+   Menus
    ========================================================= */
 static int mostrarMenu(void)
 {
     int opcion;
 
-    printf("+==================================+\n");
-    printf("|   GESTION TEMPORADA F1 2026      |\n");
-    printf("|==================================|\n");
-    printf("|  1. Listar pilotos y sus puntos  |\n");
-    printf("|  2. Registrar carrera            |\n");
-    printf("|  0. Salir                        |\n");
-    printf("+==================================+\n");
+    printf("+=====================================+\n");
+    printf("|    GESTION TEMPORADA F1 2026        |\n");
+    printf("|=====================================|\n");
+    printf("|  1. Listar pilotos y sus puntos     |\n");
+    printf("|  2. Registrar carrera               |\n");
+    printf("|  3. Listar escuderias               |\n");
+    printf("|  4. Ver todas las carreras          |\n");
+    printf("|  0. Salir                           |\n");
+    printf("+=====================================+\n");
     printf("Opcion: ");
     scanf("%d", &opcion);
 
     return opcion;
+}
+
+static int mostrarSubMenuCarrera(void)
+{
+    int op;
+
+    printf("\n  +---------------------------+\n");
+    printf("  |  Tipo de registro         |\n");
+    printf("  |---------------------------|\n");
+    printf("  |  1. Simulacion aleatoria  |\n");
+    printf("  |  2. Ingreso manual        |\n");
+    printf("  +---------------------------+\n");
+    printf("  Opcion: ");
+    scanf("%d", &op);
+
+    return op;
 }

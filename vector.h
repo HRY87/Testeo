@@ -13,10 +13,10 @@
 
 
 /* =========================================================
-            Control basico para TDA Vector
+                    Macros de control
    ========================================================= */
-#define ES_VECTOR_LLENO(X,Y)((X) == (Y) ? VEC_LLENO : 0)
-#define ES_VECTOR_VACIO(X)((X) == 0 ? VEC_VACIO : 0)
+#define ES_VECTOR_LLENO(ce, tope) ((ce) == (tope) ? VEC_LLENO : 0)
+#define ES_VECTOR_VACIO(ce)       ((ce) == 0       ? VEC_VACIO : 0)
 
 /* =========================================================
    TDA Vector dinamico generico

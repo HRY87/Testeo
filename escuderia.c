@@ -48,22 +48,22 @@ int trozarEscuderiaTxt(char* linea, void* reg)
     *act = '\0';
 
     /* Estado */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     e->estado = *(act + 1);
     *act = '\0';
 
     /* Pais */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     copiarCadena(e->pais, act + 1, TAM_PAIS);
     *act = '\0';
 
     /* Nombre */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     copiarCadena(e->nombre, act + 1, TAM_NOMBRE_ESCUDERIA);
     *act = '\0';
 
     /* Codigo */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     copiarCadena(e->codigo, act + 1, TAM_CODIGO);
     *act = '\0';
 
@@ -81,11 +81,11 @@ void escuderiaBinATxt(const void* dato, FILE* archTxt)
 {
     const Escuderia* e = (const Escuderia*)dato;
 
-    fprintf(archTxt, "%u,%s,%s,%s,%d\n",
-            e->id,
-            e->codigo,
-            e->nombre,
-            e->pais,
+    fprintf(archTxt, "%u%c%s%c%s%c%s%c%d\n",
+            e->id,     SEP_TXT,
+            e->codigo, SEP_TXT,
+            e->nombre, SEP_TXT,
+            e->pais,   SEP_TXT,
             e->estado);
 }
 

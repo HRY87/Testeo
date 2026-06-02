@@ -6,8 +6,8 @@
 /* =========================================================
    Rutas de archivos del TDA Escuderia
    ========================================================= */
-#define RUTA_ESCUDERIA_TXT  "escuderia.txt"
-#define RUTA_ESCUDERIA_BIN  "escuderia.bin"
+#define RUTA_ESCUDERIA_BIN  "archivos/escuderia.dat"
+#define RUTA_ESCUDERIA_TXT  "archivos/escuderia.txt"
 
 /* =========================================================
    Estados de la escuderia (campo 'estado')

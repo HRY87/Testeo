@@ -20,6 +20,16 @@
 #define ES_ANIO_BISIESTO(X)(((X) % 4 == 0 && (X) % 100 != 0) || ((X) % 400 == 0))
 
 /* =========================================================
+   Tamanio de buffer para lectura de lineas de texto
+   ========================================================= */
+#define TAM_LINEA       256
+
+/* =========================================================
+   Separador de campos en archivos de texto.
+   Cambiar aqui afecta a TODO el proyecto: trozar*, escribir*
+   ========================================================= */
+#define SEP_TXT         '|'
+/* =========================================================
                 Punteros a funcion genericos
    Todos los modulos (Piloto, Escuderia, Carrera) deben
    proveer implementaciones de estos tipos cuando corresponda.

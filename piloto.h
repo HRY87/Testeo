@@ -6,8 +6,8 @@
 /* =========================================================
    Rutas de archivos del TDA Piloto
    ========================================================= */
-#define RUTA_PILOTO_TXT  "piloto.txt"
-#define RUTA_PILOTO_BIN  "piloto.bin"
+#define RUTA_PILOTO_BIN  "archivos/piloto.dat"
+#define RUTA_PILOTO_TXT  "archivos/piloto.txt"
 
 /* =========================================================
    Estados del piloto (campo 'estado')

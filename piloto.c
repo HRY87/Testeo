@@ -84,32 +84,32 @@ int trozarPilotoTxt(char* linea, void* reg)
     *act = '\0';
 
     /* fechaNacimiento */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     sscanf(act + 1, "%llu", &p->fechaNacimiento);
     *act = '\0';
 
     /* estado */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     p->estado = *(act + 1);
     *act = '\0';
 
     /* puntos_acumulados */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     sscanf(act + 1, "%u", &p->puntos_acumulados);
     *act = '\0';
 
     /* id_escuderia */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     sscanf(act + 1, "%u", &p->id_escuderia);
     *act = '\0';
 
     /* nacionalidad */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     copiarCadena(p->nacionalidad, act + 1, TAM_NACIONALIDAD);
     *act = '\0';
 
     /* nombre */
-    act = strrchr(linea, ',');
+    act = strrchr(linea, SEP_TXT);
     copiarCadena(p->nombre, act + 1, TAM_NOMBRE_PILOTO);
     *act = '\0';
 
@@ -128,13 +128,13 @@ void pilotoBinATxt(const void* dato, FILE* archTxt)
 {
     const Piloto* p = (const Piloto*)dato;
 
-    fprintf(archTxt, "%u,%s,%s,%u,%u,%c,%llu\n",
-            p->id,
-            p->nombre,
-            p->nacionalidad,
-            p->id_escuderia,
-            p->puntos_acumulados,
-            p->estado,
+    fprintf(archTxt, "%u%c%s%c%s%c%u%c%u%c%c%c%llu\n",
+            p->id,               SEP_TXT,
+            p->nombre,           SEP_TXT,
+            p->nacionalidad,     SEP_TXT,
+            p->id_escuderia,     SEP_TXT,
+            p->puntos_acumulados,SEP_TXT,
+            p->estado,           SEP_TXT,
             p->fechaNacimiento);
 }
 
