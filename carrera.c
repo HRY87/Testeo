@@ -82,8 +82,8 @@ int leerCarrera(FILE* fCarrera, Carrera* c)
 static void pedirDatosBase(Carrera* c)
 {
     printf("\nNombre del circuito: ");
-    leerCadena(c->info.circuito, TAM_NOMBRE_CIRCUITO);
     limpiarBuffer();
+    leerCadena(c->info.circuito, TAM_NOMBRE_CIRCUITO);
 
     do
     {
@@ -646,3 +646,6 @@ int reduceAcumularPuntosCarrera(void* acumulador, const void* dato)
     (void)dato;
     return TODO_OK;
 }
+
+
+
