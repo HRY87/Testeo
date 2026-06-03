@@ -309,29 +309,6 @@ Flags utilizados:
 
 El ejecutable necesita que exista la carpeta `archivos/` en el directorio de trabajo. Los archivos `.txt` y `.dat` se generan automáticamente al iniciar el sistema.
 
----
-
-## Requisitos técnicos cumplidos
-
-- Aritmética de punteros en todos los recorridos de vectores y cadenas.
-- Sin VLA (Variable Length Arrays); toda la memoria dinámica es `malloc`/`free`.
-- Variables declaradas al inicio de cada bloque.
-- Archivos binarios y de texto nunca mezclados (`fopen` con `"rb"`/`"wb"` vs `"rt"`/`"wt"`).
-- Ningún archivo queda abierto ante error (recursos liberados en todos los caminos).
-- Cero accesos a memoria no propia.
-- Funciones genéricas con punteros a función en lugar de lógica duplicada.
-- Separación completa de TDA en archivos `.c`/`.h` independientes.
-
----
-
-## Puntos avanzados implementados
-
-- **Motor de consultas genérico (B):** `Filter`, `Reduce`, `Map` y `Comparar` permiten filtrar, acumular y transformar cualquier TDA sin reescribir lógica.
-- **Simulación de carrera (C):** `generarResultadoAleatorioVector` con Fisher-Yates genera posiciones aleatorias reproducibles tras `srand(time(NULL))`.
-- **Sistema incremental de estadísticas (D):** `actualizarPuntosUltimaCarrera` evita recorrer todo `carrera.dat` en el flujo normal; `recalcularPuntosPilotos` solo se invoca al listar o ante cancelaciones.
-
----
-
 ## Pilotos de prueba — Temporada 2026
 
 | ID | Nombre | Escudería | Nac. |
