@@ -12,10 +12,10 @@
 /* ---------------------------------------------------------
    Estados de resultado de carrera (campo estado_resultado)
    --------------------------------------------------------- */
-#define RES_FIN  'F'   /* Termino la carrera normalmente     */
-#define RES_DNF  'N'   /* Did Not Finish  - 0 puntos         */
-#define RES_DNS  'D'   /* Did Not Start   - 0 puntos         */
-#define RES_DSQ  'Q'   /* Descalificado   - puntos segun regla */
+#define RES_FIN  1   /* Termino la carrera normalmente     */
+#define RES_DNF  2   /* Did Not Finish  - 0 puntos         */
+#define RES_DNS  3   /* Did Not Start   - 0 puntos         */
+#define RES_DSQ  4   /* Descalificado   - puntos segun regla */
 
 /* ---------------------------------------------------------
    Indices de columna (compatibilidad con codigo existente)
