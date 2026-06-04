@@ -8,7 +8,7 @@
 
 ## Descripción
 
-Sistema de gestión de una temporada de Fórmula 1 desarrollado en C. Permite registrar pilotos, escuderías y carreras, calcular puntos acumulados, aplicar sanciones por descalificación y consultar estadísticas de la temporada.
+Sistema de gestión de una temporada de Fórmula 1 desarrollado en C. Permite registrar pilotos, escuderías y carreras, calcular puntos acumulados y consultar estadísticas de la temporada.
 
 El diseño se basa en **Tipos de Datos Abstractos (TDA)** con separación estricta de módulos `.c`/`.h`, uso de **memoria dinámica** y **funciones genéricas mediante punteros a función** (`Filter`, `Reduce`, `Map`, `Comparar`, etc.).
 
@@ -22,17 +22,15 @@ TP_F1/
 ├── piloto.c / piloto.h
 ├── escuderia.c / escuderia.h
 ├── carrera.c / carrera.h
-├── sancion.c / sancion.h
-├── vector.c / vector.h
 ├── resultado.h
+├── vector.c / vector.h
 ├── utilidades.c / utilidades.h
 └── archivos/
     ├── piloto.txt       ← carga inicial
     ├── piloto.dat       ← binario generado
     ├── escuderia.txt    ← carga inicial
     ├── escuderia.dat    ← binario generado
-    ├── carrera.dat      ← carreras registradas
-    └── sancion.dat      ← sanciones aplicadas
+    └── carrera.dat      ← carreras registradas
 ```
 
 ---
@@ -128,7 +126,7 @@ typedef struct {
 |-----------|-------|-------------|
 | `ESTADO_ACTIVO_PILOTO` | `'A'` | Activo en la temporada |
 | `ESTADO_RETIRADO_PILOTO` | `'R'` | Retirado |
-| `ESTADO_SUSPENDIDO_PILOTO` | `'S'` | Suspendido por sanciones |
+| `ESTADO_SUSPENDIDO_PILOTO` | `'S'` | Suspendido |
 
 **Funciones clave:**
 
@@ -200,8 +198,8 @@ typedef struct {
 
 **Modos de registro:**
 
-- **Aleatorio:** genera posiciones con Fisher-Yates sobre los pilotos activos.
-- **Manual:** el usuario ingresa cada piloto, estado (FIN/DNF/DNS/DSQ) y puntos.
+- **Aleatorio:** genera posiciones con Fisher-Yates sobre los pilotos activos. Todos con estado `RES_FIN` y puntos según tabla.
+- **Manual:** el usuario ingresa cada piloto y su estado. `RES_DNF`, `RES_DNS` y `RES_DSQ` asignan 0 puntos automáticamente sin preguntar.
 
 **Actualización de puntos — dos estrategias:**
 
@@ -225,32 +223,14 @@ typedef struct {
 } ResultadoPiloto;
 ```
 
----
+**Estados de resultado:**
 
-### `sancion` — TDA Sancion
-
-Se aplica automáticamente cuando un piloto termina con estado `DSQ` en una carrera manual.
-
-```c
-typedef struct {
-    unsigned           id_piloto;
-    unsigned           id_carrera;
-    int                tipo;      // SANCION_PUNTOS / SANCION_CARRERA / SANCION_AMBAS
-    int                puntos;    // puntos a descontar
-    int                carreras;  // carreras a saltear
-    unsigned long long fecha;
-} Sancion;
-```
-
-**Tipos de sanción:**
-
-| Constante | Valor | Efecto |
+| Constante | Valor | Puntos |
 |-----------|-------|--------|
-| `SANCION_PUNTOS` | 1 | Descuenta `PUNTOS_PENALIZACION_DSQ` (10 pts) |
-| `SANCION_CARRERA` | 2 | El piloto saltea N carreras |
-| `SANCION_AMBAS` | 3 | Descuento de puntos + saltear carreras |
-
-Si un piloto acumula `UMBRAL_DSQ_SUSPENSION` (2) sanciones, su estado cambia automáticamente a `'S'` (suspendido).
+| `RES_FIN` | 1 | Según posición (tabla F1) |
+| `RES_DNF` | 2 | 0 siempre |
+| `RES_DNS` | 3 | 0 siempre |
+| `RES_DSQ` | 4 | 0 siempre |
 
 ---
 
@@ -267,10 +247,6 @@ escuderia.txt ────────────► escuderia.dat
           (aleatorio / manual)  │
                                 ▼
                           carrera.dat
-                                │
-          DSQ detectado ────────┤
-                                ▼
-                          sancion.dat
                                 │
           Recalcular puntos ────┤
                                 ▼
@@ -308,6 +284,8 @@ Flags utilizados:
 - Release: `-O2 -Wall -s`
 
 El ejecutable necesita que exista la carpeta `archivos/` en el directorio de trabajo. Los archivos `.txt` y `.dat` se generan automáticamente al iniciar el sistema.
+
+---
 
 ## Pilotos de prueba — Temporada 2026
 

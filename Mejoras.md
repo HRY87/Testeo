@@ -10,14 +10,14 @@ Si todos los pilotos están suspendidos o retirados, `vIds.ce == 0` y el Fisher-
 **2. `registrarCarreraManual` no verifica que el ID ingresado exista**
 El usuario puede ingresar cualquier número y el sistema lo acepta sin verificar que ese ID corresponda a un piloto real y activo. Hay que buscar el ID en `piloto.dat` antes de aceptarlo.
 
-**3. `pedirEstadoResultado` y `pedirTipoSancion` no controlan entrada no numérica**
+**3. `pedirEstadoResultado` no controla entrada no numérica**
 Si el usuario ingresa letras, `scanf("%d")` falla silenciosamente y el loop puede volverse infinito porque la variable nunca cambia. Hay que verificar el valor de retorno de `scanf` y limpiar el buffer ante entrada inválida.
 
 **4. `scanf("%llu")` para la fecha no controla entrada no numérica**
 Mismo problema que el punto anterior. El retorno de `scanf` debe chequearse antes de validar la fecha.
 
 **5. `generarIdCarrera` usa el último ID leído, no el máximo**
-Si por algún motivo las carreras en el `.bin` no están en orden, el nuevo ID puede colisionar con uno existente. Hay que buscar el máximo, no simplemente el último.
+Si por algún motivo las carreras en el `.dat` no están en orden, el nuevo ID puede colisionar con uno existente. Hay que buscar el máximo, no simplemente el último.
 
 ---
 
@@ -39,26 +39,23 @@ Si `cant_resultados` en el header supera el `tope` del vector, el `memcpy` escri
 **9. No se valida que la fecha de la carrera sea coherente con las anteriores**
 Se puede registrar una carrera con fecha `20200101` sin ningún aviso. Una validación mínima sería advertir si la fecha es anterior a la última carrera ya registrada.
 
-**10. `recalcularPuntosPilotos` ignora las sanciones de `sancion.dat`**
-`aplicarSancionDSQ` descuenta puntos directamente en `piloto.dat`, pero cuando se llama `recalcularPuntosPilotos` (opción 1 del menú) ese descuento se pierde porque el recálculo no lee `sancion.dat`. Las sanciones de tipo `SANCION_PUNTOS` deben aplicarse también durante el recálculo.
-
-**11. Un piloto suspendido puede ingresarse en una carrera manual**
+**10. Un piloto suspendido puede ingresarse en una carrera manual**
 En el ingreso manual solo se verifica que el ID no esté duplicado, no que el piloto esté activo. Hay que agregar la validación de estado `'A'` al aceptar un ID en `registrarCarreraManual`.
 
 ---
 
 ## Calidad de código
 
-**12. `COL_ID_PILOTO` y `COL_PUNTOS` están definidos en dos headers**
-Aparecen tanto en `resultado.h` como en `piloto.h`. Alcanza con definirlos en `resultado.h` y que `piloto.h` lo incluya, eliminando la duplicación.
+**11. `COL_ID_PILOTO` y `COL_PUNTOS` están definidos en dos headers**
+Aparecen tanto en `resultado.h` como en `piloto.h`. Alcanza con definirlos en uno solo y que el otro lo incluya, eliminando la duplicación.
 
-**13. `reduceAcumularPuntosCarrera` no hace nada**
+**12. `reduceAcumularPuntosCarrera` no hace nada**
 Recibe los parámetros, los castea a `void` y retorna `TODO_OK`. La lógica real está en `acumularPuntosDesdeCarrera`. El parámetro `Reduce reducir` en `recalcularPuntosPilotos` y `actualizarPuntosUltimaCarrera` nunca se usa; debería unificarse o eliminarse.
 
-**14. Dependencia de `piloto.h` está oculta en `carrera.c`**
+**13. Dependencia de `piloto.h` está oculta en `carrera.c`**
 `carrera.c` incluye `piloto.h` pero `carrera.h` no lo declara. Si otro módulo incluye solo `carrera.h` puede fallar en compilación. La dependencia debe ser explícita en el `.h`.
 
-**15. `SEP_TXT` no se refleja en las funciones `trozar*`**
+**14. `SEP_TXT` no se refleja en las funciones `trozar*`**
 El separador está definido como `SEP_TXT` en `utilidades.h`, pero las funciones de parseo usan `strtok` con el literal `"|"` hardcodeado. Si se cambia `SEP_TXT`, el parseo no lo refleja. Hay que construir el string desde `SEP_TXT`:
 ```c
 char sep[2] = {SEP_TXT, '\0'};
@@ -76,6 +73,6 @@ strtok(linea, sep);
 | 3 | ID inexistente en manual | Ingresar ID `999` que no existe en `piloto.dat` |
 | 4 | Mismo piloto dos veces | Ingresar el mismo ID dos veces en la misma carrera |
 | 5 | Fecha inválida | Probar `20261340`, `0`, y letras |
-| 6 | 2 DSQ al mismo piloto | Verificar que pase a suspendido en el segundo DSQ |
+| 6 | Piloto con DNF/DNS/DSQ | Verificar que aparece en resultados con 0 puntos |
 | 7 | Carrera sin resultados | Terminar ingreso manual con ID `0` sin cargar ningún piloto |
 | 8 | Input no numérico en menú | Ingresar `abc` en cualquier `scanf` numérico |

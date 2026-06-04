@@ -4,7 +4,6 @@
 #include "utilidades.h"
 #include "vector.h"
 #include "resultado.h"
-#include "sancion.h"
 
 /* =========================================================
    Rutas de archivos del TDA Carrera
@@ -88,13 +87,11 @@ int leerCarrera(FILE* fCarrera, Carrera* c);
 /* Modo automatico: posiciones generadas con Fisher-Yates */
 int registrarCarreraAleatoria(const char* rutaCarrera,
                               const char* rutaPiloto,
-                              const char* rutaSancion,
                               Comparar    comparar);
 
 /* Modo manual: el usuario ingresa cada piloto, estado y puntos */
 int registrarCarreraManual(const char* rutaCarrera,
                            const char* rutaPiloto,
-                           const char* rutaSancion,
                            Comparar    comparar);
 
 /* Generador de ID (ultimo id + 1, o 1 si el archivo esta vacio) */

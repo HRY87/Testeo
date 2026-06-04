@@ -48,7 +48,6 @@ int main(void)
             {
                 if (registrarCarreraAleatoria(RUTA_CARRERA_BIN,
                                               RUTA_PILOTO_BIN,
-                                              RUTA_SANCION_BIN,
                                               compararUnsigned) == TODO_OK)
                 {
                     actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,
@@ -63,7 +62,6 @@ int main(void)
             {
                 if (registrarCarreraManual(RUTA_CARRERA_BIN,
                                            RUTA_PILOTO_BIN,
-                                           RUTA_SANCION_BIN,
                                            compararUnsigned) == TODO_OK)
                 {
                     actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,

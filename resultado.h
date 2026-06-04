@@ -11,11 +11,15 @@
 
 /* ---------------------------------------------------------
    Estados de resultado de carrera (campo estado_resultado)
+
+   Solo RES_FIN puede sumar puntos segun la posicion final.
+   RES_DNF, RES_DNS y RES_DSQ siempre tienen puntos = 0,
+   independientemente de la posicion en que figuren.
    --------------------------------------------------------- */
-#define RES_FIN  1   /* Termino la carrera normalmente     */
-#define RES_DNF  2   /* Did Not Finish  - 0 puntos         */
-#define RES_DNS  3   /* Did Not Start   - 0 puntos         */
-#define RES_DSQ  4   /* Descalificado   - puntos segun regla */
+#define RES_FIN  1   /* Termino la carrera normalmente  - puntos segun posicion */
+#define RES_DNF  2   /* Did Not Finish                  - 0 puntos              */
+#define RES_DNS  3   /* Did Not Start                   - 0 puntos              */
+#define RES_DSQ  4   /* Descalificado                   - 0 puntos              */
 
 /* ---------------------------------------------------------
    Indices de columna (compatibilidad con codigo existente)

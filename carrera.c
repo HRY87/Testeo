@@ -122,45 +122,6 @@ static int pedirEstadoResultado(void)
     return estado;
 }
 
-/*
- * pedirTipoSancion
- * Solicita tipo (1-3) y cantidad de carreras si aplica.
- * Se justifica como funcion por la logica condicional de carreras.
- */
-static void pedirTipoSancion(int* tipo, int* carreras)
-{
-    printf("\n  Tipo de sancion:\n");
-    printf("    1. Descuento de %d puntos\n", PUNTOS_PENALIZACION_DSQ);
-    printf("    2. Saltear carrera(s)\n");
-    printf("    3. Puntos + saltear carrera(s)\n");
-
-    do
-    {
-        printf("  Opcion: ");
-        scanf("%d", tipo);
-        limpiarBuffer();
-
-        if (*tipo < SANCION_PUNTOS || *tipo > SANCION_AMBAS)
-            printf("[!] Opcion invalida. Ingrese 1, 2 o 3.\n");
-
-    }
-    while (*tipo < SANCION_PUNTOS || *tipo > SANCION_AMBAS);
-
-    *carreras = 0;
-
-    if (*tipo == SANCION_CARRERA || *tipo == SANCION_AMBAS)
-    {
-        printf("  Carreras a saltear: ");
-        scanf("%d", carreras);
-        limpiarBuffer();
-
-        if (*carreras < 1)
-        {
-            printf("[!] Debe ser al menos 1. Se asigna 1.\n");
-            *carreras = 1;
-        }
-    }
-}
 
 /*
  * esPilotoDuplicado
@@ -234,7 +195,6 @@ static const char* estadoResultadoATexto(int estado)
 
 int registrarCarreraAleatoria(const char* rutaCarrera,
                               const char* rutaPiloto,
-                              const char* rutaSancion,
                               Comparar    comparar)
 {
     Carrera nueva;
@@ -272,18 +232,19 @@ int registrarCarreraAleatoria(const char* rutaCarrera,
 
 int registrarCarreraManual(const char* rutaCarrera,
                            const char* rutaPiloto,
-                           const char* rutaSancion,
                            Comparar    comparar)
 {
     Carrera         nueva;
     ResultadoPiloto rp;
     FILE*           fCarrera;
-    int             resp, pos;
-    int             pInput, puntosSug;
-    int             hayMas, tipoSancion, carrerasSancion;
-    int             k, dsqCant; //Cantidad de descuento
-    unsigned        dsqIds[MAX_PILOTOS_CARRERA];
+    int             resp;
+    int             pos;
+    int             pInput;
+    int             puntosSug;
+    int             hayMas;
 
+    (void)rutaPiloto;
+    (void)comparar;
 
     if (inicializarCarrera(&nueva, MAX_PILOTOS_CARRERA))
         return SIN_MEM;
@@ -298,12 +259,12 @@ int registrarCarreraManual(const char* rutaCarrera,
     nueva.info.id              = generarIdCarrera(fCarrera);
     nueva.info.estado          = ESTADO_CARRERA_ACTIVA;
     nueva.info.cant_resultados = 0;
-    dsqCant                    = 0;
 
     pedirDatosBase(&nueva);
 
     printf("\nIngreso de resultados (ID piloto = 0 para terminar)\n");
     printf("Estados: 1=FIN  2=DNF  3=DNS  4=DSQ\n");
+    printf("DNF/DNS/DSQ asignan 0 puntos automaticamente.\n");
     printf("--------------------------------------------\n");
 
     pos    = 1;
@@ -321,20 +282,33 @@ int registrarCarreraManual(const char* rutaCarrera,
         }
         else if (esPilotoDuplicado(&nueva, rp.id_piloto))
         {
-            printf("[!] Piloto ID %u ya fue registrado en esta carrera.\n", rp.id_piloto);
+            printf("[!] Piloto ID %u ya fue registrado en esta carrera.\n",
+                   rp.id_piloto);
         }
         else
         {
             rp.estado_resultado = pedirEstadoResultado();
 
-            puntosSug = (rp.estado_resultado == RES_FIN && pos <= POS_LIMITE_PUNTOS_CARRERA)
-                        ? puntos_f1[pos] : puntos_f1[0];
+            /* DNF, DNS y DSQ siempre 0 puntos, sin preguntar */
+            if (rp.estado_resultado != RES_FIN)
+            {
+                rp.puntos = 0;
+                printf("           Puntos: 0 (estado %s)\n",
+                       estadoResultadoATexto(rp.estado_resultado));
+            }
+            else
+            {
+                /* FIN: sugerir puntos segun posicion, permitir ajuste */
+                puntosSug = (pos <= POS_LIMITE_PUNTOS_CARRERA)
+                            ? puntos_f1[pos] : 0;
 
-            printf("           Puntos (sugerido %2d, -1 para aceptar): ", puntosSug);
-            scanf("%d", &pInput);
-            limpiarBuffer();
+                printf("           Puntos (sugerido %2d, -1 para aceptar): ",
+                       puntosSug);
+                scanf("%d", &pInput);
+                limpiarBuffer();
 
-            rp.puntos = (pInput < 0) ? puntosSug : pInput;
+                rp.puntos = (pInput < 0) ? puntosSug : pInput;
+            }
 
             memcpy((char*)nueva.resultados.vec +
                    (nueva.resultados.ce * sizeof(ResultadoPiloto)),
@@ -342,10 +316,6 @@ int registrarCarreraManual(const char* rutaCarrera,
 
             nueva.resultados.ce++;
             nueva.info.cant_resultados++;
-
-            if (rp.estado_resultado == RES_DSQ && dsqCant < MAX_PILOTOS_CARRERA)
-                dsqIds[dsqCant++] = rp.id_piloto;
-
             pos++;
         }
     }
@@ -356,22 +326,8 @@ int registrarCarreraManual(const char* rutaCarrera,
     fseek(fCarrera, 0L, SEEK_END);
     resp = escribirCarrera(fCarrera, &nueva);
     fclose(fCarrera);
-
-    for (k = 0; k < dsqCant; k++)
-    {
-        printf("\n[DSQ] Piloto ID %u - Elegir sancion:\n", dsqIds[k]);
-        pedirTipoSancion(&tipoSancion, &carrerasSancion);
-
-        aplicarSancionDSQ(rutaSancion,
-                          rutaPiloto,
-                          dsqIds[k],
-                          (unsigned)nueva.info.id,
-                          nueva.info.fecha,
-                          tipoSancion,
-                          carrerasSancion);
-    }
-
     destruirCarrera(&nueva);
+
     return resp;
 }
 
