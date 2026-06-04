@@ -46,6 +46,11 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="piloto.h" />
+		<Unit filename="resultado.h" />
+		<Unit filename="sancion.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="sancion.h" />
 		<Unit filename="utilidades.c">
 			<Option compilerVar="CC" />
 		</Unit>
