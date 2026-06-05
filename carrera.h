@@ -5,6 +5,7 @@
 #include "vector.h"
 #include "resultado.h"
 #include "puntos.h"
+
 /* =========================================================
    Rutas de archivos del TDA Carrera
    ========================================================= */
@@ -76,56 +77,63 @@ int escribirCarrera(FILE* fCarrera, const Carrera* c);
 
 /* Lee el siguiente Carrera del archivo en la posicion actual.
    El tVector de 'c' debe estar ya inicializado con suficiente capacidad.
-   Retorna TODO_OK, ERR_ARCH (fin de archivo) o SIN_MEM. */
+   Retorna TODO_OK o ERR_ARCH (fin de archivo). */
 int leerCarrera(FILE* fCarrera, Carrera* c);
 
 /* =========================================================
    Alta de carrera
    ========================================================= */
 
-/* Modo automatico: posiciones generadas con Fisher-Yates */
+/* Modo automatico: posiciones generadas con Fisher-Yates.
+   cfg define la tabla de puntos a aplicar. */
 int registrarCarreraAleatoria(const char*         rutaCarrera,
                               const char*         rutaPiloto,
                               Comparar            comparar,
                               const ConfigPuntos* cfg);
 
-/* Modo manual: el usuario ingresa cada piloto, estado y puntos */
-int registrarCarreraManual(const char* rutaCarrera,
-                           const char* rutaPiloto,
-                           Comparar    comparar);
+/* Modo manual: el usuario ingresa cada piloto, estado y puntos.
+   cfg se usa para sugerir puntos segun posicion. */
+int registrarCarreraManual(const char*         rutaCarrera,
+                           const char*         rutaPiloto,
+                           Comparar            comparar,
+                           const ConfigPuntos* cfg);
 
-/* Generador de ID (ultimo id + 1, o 1 si el archivo esta vacio) */
+/* Generador de ID: busca el MAXIMO id en el archivo y retorna maximo+1.
+   Retorna 1 si el archivo esta vacio. */
 int generarIdCarrera(FILE* fCarrera);
 
-/* Carga los IDs de pilotos activos en un vector y los mezcla */
-int cargarResultadosAleatorios(const char* rutaPiloto,
-                               Carrera*    c,
-                               Comparar    comparar);
+/* Carga los IDs de pilotos activos en el vector de resultados de 'c'
+   y los mezcla aleatoriamente con Fisher-Yates. */
+int cargarResultadosAleatorios(const char*         rutaPiloto,
+                               Carrera*            c,
+                               Comparar            comparar,
+                               const ConfigPuntos* cfg);
 
 /* =========================================================
    Actualizacion de puntos en piloto.bin
+
+   Nota: el parametro Reduce fue eliminado (Mejora #12).
+   La logica de acumulacion esta internalizada en carrera.c.
    ========================================================= */
 
-/* Recalcula puntos desde cero (recorre todo carrera.bin) */
+/* Recalcula puntos desde cero recorriendo todo carrera.bin */
 int recalcularPuntosPilotos(const char* rutaCarrera,
                             const char* rutaPiloto,
-                            Filter      filtrar,
-                            Reduce      reducir);
+                            Filter      filtrar);
 
 /* Suma solo los puntos de la ultima carrera (mas eficiente) */
 int actualizarPuntosUltimaCarrera(const char* rutaCarrera,
                                   const char* rutaPiloto,
-                                  Filter      filtrar,
-                                  Reduce      reducir);
+                                  Filter      filtrar);
 
 /* =========================================================
    Punteros a funcion del TDA Carrera
    ========================================================= */
 
-/* Mostrar: imprime una Carrera con sus resultados */
+/* Mostrar solo header (para listados breves) */
 void mostrarCarrera(const void* dato);
 
-/* Mostrar completa (con resultados del tVector) */
+/* Mostrar completa con resultados del tVector */
 void mostrarCarreraCompleta(const Carrera* c);
 
 /* Recorre carrera.bin y muestra todas las carreras completas */
@@ -134,7 +142,7 @@ int  listarTodasLasCarreras(const char* rutaCarrera);
 /* Filter: retorna 1 si la carrera esta activa */
 int  filterEsCarreraActiva(const void* dato);
 
-/* Reduce: acumula los puntos de una carrera en un tVector de Pilotos */
+/* Reduce: stub de compatibilidad — no hace nada (Mejora #12) */
 int  reduceAcumularPuntosCarrera(void* acumulador, const void* dato);
 
 #endif // CARRERA_H_INCLUDED

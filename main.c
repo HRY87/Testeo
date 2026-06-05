@@ -4,6 +4,7 @@
 #include "piloto.h"
 #include "escuderia.h"
 #include "carrera.h"
+#include "puntos.h"
 
 /* =========================================================
    Prototipos internos
@@ -11,16 +12,24 @@
 static void inicializarSistema(void);
 static int  mostrarMenu(void);
 static int  mostrarSubMenuCarrera(void);
+static void editarTablaPuntos(ConfigPuntos* cfg);
 
 /* =========================================================
    Punto de entrada
    ========================================================= */
 int main(void)
 {
-    int opcion;
-    int subOpcion;
+    int          opcion;
+    int          subOpcion;
+    ConfigPuntos cfg;
 
     inicializarSistema();
+
+    /* Cargar tabla de puntos una sola vez al inicio.
+       Si el archivo no existe, cargarConfigPuntos genera
+       los valores F1 por defecto y los persiste. */
+    cargarConfigPuntos(RUTA_PUNTOS_BIN, &cfg);
+
     opcion = mostrarMenu();
 
     while (opcion != 0)
@@ -31,8 +40,7 @@ int main(void)
         case 1:
             recalcularPuntosPilotos(RUTA_CARRERA_BIN,
                                     RUTA_PILOTO_BIN,
-                                    filterEsCarreraActiva,
-                                    reduceAcumularPuntosCarrera);
+                                    filterEsCarreraActiva);
 
             printf("\n=== PILOTOS - TEMPORADA 2026 ===\n");
             mostrarArchivoBinario(RUTA_PILOTO_BIN,
@@ -48,12 +56,12 @@ int main(void)
             {
                 if (registrarCarreraAleatoria(RUTA_CARRERA_BIN,
                                               RUTA_PILOTO_BIN,
-                                              compararUnsigned) == TODO_OK)
+                                              compararUnsigned,
+                                              &cfg) == TODO_OK)
                 {
                     actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,
-                                                 RUTA_PILOTO_BIN,
-                                                 filterEsCarreraActiva,
-                                                 reduceAcumularPuntosCarrera);
+                                                  RUTA_PILOTO_BIN,
+                                                  filterEsCarreraActiva);
                     printf("\n=== CARRERAS REGISTRADAS ===\n");
                     listarTodasLasCarreras(RUTA_CARRERA_BIN);
                 }
@@ -62,12 +70,12 @@ int main(void)
             {
                 if (registrarCarreraManual(RUTA_CARRERA_BIN,
                                            RUTA_PILOTO_BIN,
-                                           compararUnsigned) == TODO_OK)
+                                           compararUnsigned,
+                                           &cfg) == TODO_OK)
                 {
                     actualizarPuntosUltimaCarrera(RUTA_CARRERA_BIN,
-                                                 RUTA_PILOTO_BIN,
-                                                 filterEsCarreraActiva,
-                                                 reduceAcumularPuntosCarrera);
+                                                  RUTA_PILOTO_BIN,
+                                                  filterEsCarreraActiva);
                     printf("\n=== CARRERAS REGISTRADAS ===\n");
                     listarTodasLasCarreras(RUTA_CARRERA_BIN);
                 }
@@ -86,6 +94,11 @@ int main(void)
         case 4:
             printf("\n=== CARRERAS DE LA TEMPORADA ===\n");
             listarTodasLasCarreras(RUTA_CARRERA_BIN);
+            break;
+
+        /* --- 5. Configurar tabla de puntos --- */
+        case 5:
+            editarTablaPuntos(&cfg);
             break;
 
         default:
@@ -150,10 +163,12 @@ static int mostrarMenu(void)
     printf("|  2. Registrar carrera               |\n");
     printf("|  3. Listar escuderias               |\n");
     printf("|  4. Ver todas las carreras          |\n");
+    printf("|  5. Configurar tabla de puntos      |\n");
     printf("|  0. Salir                           |\n");
     printf("+=====================================+\n");
     printf("Opcion: ");
     scanf("%d", &opcion);
+    limpiarBuffer();
 
     return opcion;
 }
@@ -170,6 +185,86 @@ static int mostrarSubMenuCarrera(void)
     printf("  +---------------------------+\n");
     printf("  Opcion: ");
     scanf("%d", &op);
+    limpiarBuffer();
 
     return op;
+}
+
+/* =========================================================
+   Edicion de la tabla de puntos
+   ========================================================= */
+
+/*
+ * editarTablaPuntos
+ * Permite al usuario ver la tabla actual, cambiar la cantidad
+ * de posiciones con puntos y editar cada valor.
+ * Persiste los cambios en RUTA_PUNTOS_BIN al confirmar.
+ */
+static void editarTablaPuntos(ConfigPuntos* cfg)
+{
+    int i;
+    int nuevasCantPos;
+    int nuevoPts;
+    int confirmacion;
+    int leido;
+
+    printf("\n=== CONFIGURACION DE TABLA DE PUNTOS ===\n");
+    mostrarConfigPuntos(cfg);
+
+    printf("\nCantidad de posiciones con puntos (1-%d, actual: %d): ",
+           MAX_POSICIONES_PUNTOS, cfg->posiciones);
+
+    leido = scanf("%d", &nuevasCantPos);
+    limpiarBuffer();
+
+    if (leido != 1 || nuevasCantPos < 1 || nuevasCantPos > MAX_POSICIONES_PUNTOS)
+    {
+        printf("[!] Valor invalido. No se realizaron cambios.\n");
+        return;
+    }
+
+    printf("\nIngrese los puntos para cada posicion (0 = sin puntos):\n");
+
+    for (i = 0; i < nuevasCantPos; i++)
+    {
+        do
+        {
+            printf("  Posicion %2d: ", i + 1);
+            leido = scanf("%d", &nuevoPts);
+            limpiarBuffer();
+
+            if (leido != 1 || nuevoPts < 0)
+                printf("  [!] Valor invalido. Ingrese un numero >= 0.\n");
+
+        } while (leido != 1 || nuevoPts < 0);
+
+        cfg->tabla[i] = nuevoPts;
+    }
+
+    /* Limpiar posiciones que quedaron fuera del nuevo rango */
+    for (i = nuevasCantPos; i < MAX_POSICIONES_PUNTOS; i++)
+        cfg->tabla[i] = 0;
+
+    cfg->posiciones = nuevasCantPos;
+
+    printf("\nTabla nueva:\n");
+    mostrarConfigPuntos(cfg);
+
+    printf("Confirmar cambios? (1=Si / 0=No): ");
+    leido = scanf("%d", &confirmacion);
+    limpiarBuffer();
+
+    if (leido == 1 && confirmacion == 1)
+    {
+        if (guardarConfigPuntos(RUTA_PUNTOS_BIN, cfg) == TODO_OK)
+            printf("[OK] Tabla guardada en '%s'.\n\n", RUTA_PUNTOS_BIN);
+        else
+            printf("[!] Error al guardar la tabla.\n\n");
+    }
+    else
+    {
+        /* Recargar desde disco para descartar cambios en memoria */
+        cargarConfigPuntos(RUTA_PUNTOS_BIN, cfg);
+        printf("[i] Cambios descartados.\n\n");
+    }
 }

@@ -1,15 +1,12 @@
 #include <string.h>
 #include <memory.h>
+#include <ctype.h>
 #include "utilidades.h"
 
 /* =========================================================
             Funciones de cadena y utiles generales
    ========================================================= */
 
-/**
- * copiarCadena
- * Copia hasta n-1 caracteres de src a dest y agrega '\0'.
- */
 int copiarCadena(char* dest, const char* src, size_t n)
 {
     char*       d    = dest;
@@ -29,11 +26,6 @@ int copiarCadena(char* dest, const char* src, size_t n)
     return TODO_OK;
 }
 
-/**
- * leerCadena
- * Lee una linea de stdin en dest (max n chars incluido '\0').
- * Elimina el '\n' que deja fgets.
- */
 int leerCadena(char* dest, size_t n)
 {
     char* pos;
@@ -44,27 +36,19 @@ int leerCadena(char* dest, size_t n)
     if (!fgets(dest, (int)n, stdin))
         return ERR_LINEA;
 
-    /* strrchr para encontrar el '\n' desde el final */
     pos = strrchr(dest, '\n');
-    if (pos) *pos = '\0';
+    if (pos)
+        *pos = '\0';
 
     return TODO_OK;
 }
 
-/**
- * limpiarBuffer
- * Descarta stdin hasta '\n' o EOF.
- */
 void limpiarBuffer(void)
 {
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
 }
 
-/**
- * intercambiar
- * Intercambia dos bloques de memoria de tamanio tam.
- */
 void intercambiar(void* d1, void* d2, size_t tam)
 {
     void* aux = malloc(tam);
@@ -78,14 +62,219 @@ void intercambiar(void* d1, void* d2, size_t tam)
 }
 
 /* =========================================================
+         Lectura segura de tipos numericos desde stdin
+
+   Estrategia unica para todos los tipos:
+   1. Leer la linea completa con fgets en un buffer.
+   2. Intentar convertir con sscanf.
+   3. Verificar que NO queden caracteres no numericos
+      despues del numero (ej: "12abc" se rechaza).
+   4. Verificar rango si corresponde.
+   5. Si cualquier paso falla: mensaje y reintento.
+
+   De esta forma el buffer de stdin nunca queda sucio
+   porque fgets ya consumio la linea entera.
+   ========================================================= */
+
+/*
+ * esLineaNumerica
+ * Retorna 1 si la cadena representa un entero sin signo
+ * (solo digitos, opcionalmente precedidos de espacios).
+ * Se usa para rechazar entradas como "12abc" o "3.5".
+ */
+static int esLineaNumerica(const char* linea)
+{
+    const char* p = linea;
+
+    /* Saltear espacios iniciales */
+    while (*p == ' ' || *p == '\t') p++;
+
+    if (*p == '\0') return 0;   /* linea vacia */
+
+    while (*p)
+    {
+        if (!isdigit((unsigned char)*p)) return 0;
+        p++;
+    }
+    return 1;
+}
+
+int leerInt(int* dest, int min, int max)
+{
+    char buf[TAM_LINEA];
+    int  val;
+    int  leido;
+
+    do
+    {
+        if (!fgets(buf, (int)sizeof(buf), stdin))
+        {
+            printf("[!] Error de lectura.\n");
+            continue;
+        }
+
+        /* Eliminar salto de linea */
+        {
+            char* nl = strrchr(buf, '\n');
+            if (nl) *nl = '\0';
+        }
+
+        leido = sscanf(buf, "%d", &val);
+
+        if (leido != 1 || !esLineaNumerica(buf))
+        {
+            printf("[!] Entrada invalida. Ingrese un numero entero"
+                   " entre %d y %d: ", min, max);
+            continue;
+        }
+
+        if (val < min || val > max)
+        {
+            printf("[!] Valor fuera de rango [%d, %d]: ", min, max);
+            continue;
+        }
+
+        *dest = val;
+        return TODO_OK;
+
+    } while (1);
+}
+
+int leerUnsigned(unsigned* dest, unsigned min, unsigned max)
+{
+    char     buf[TAM_LINEA];
+    unsigned val;
+    int      leido;
+
+    do
+    {
+        if (!fgets(buf, (int)sizeof(buf), stdin))
+        {
+            printf("[!] Error de lectura.\n");
+            continue;
+        }
+
+        {
+            char* nl = strrchr(buf, '\n');
+            if (nl) *nl = '\0';
+        }
+
+        if (!esLineaNumerica(buf))
+        {
+            printf("[!] Entrada invalida. Ingrese un numero positivo"
+                   " entre %u y %u: ", min, max);
+            continue;
+        }
+
+        leido = sscanf(buf, "%u", &val);
+
+        if (leido != 1)
+        {
+            printf("[!] Entrada invalida. Ingrese un numero positivo"
+                   " entre %u y %u: ", min, max);
+            continue;
+        }
+
+        if (val < min || val > max)
+        {
+            printf("[!] Valor fuera de rango [%u, %u]: ", min, max);
+            continue;
+        }
+
+        *dest = val;
+        return TODO_OK;
+
+    } while (1);
+}
+
+int leerUnsignedLongLong(unsigned long long* dest)
+{
+    char               buf[TAM_LINEA];
+    unsigned long long val;
+    int                leido;
+
+    do
+    {
+        if (!fgets(buf, (int)sizeof(buf), stdin))
+        {
+            printf("[!] Error de lectura.\n");
+            continue;
+        }
+
+        {
+            char* nl = strrchr(buf, '\n');
+            if (nl) *nl = '\0';
+        }
+
+        if (!esLineaNumerica(buf))
+        {
+            printf("[!] Entrada invalida. Ingrese solo digitos numericos: ");
+            continue;
+        }
+
+        leido = sscanf(buf, "%llu", &val);
+
+        if (leido != 1)
+        {
+            printf("[!] Entrada invalida. Ingrese solo digitos numericos: ");
+            continue;
+        }
+
+        *dest = val;
+        return TODO_OK;
+
+    } while (1);
+}
+
+int leerChar(char* dest, const char* validos)
+{
+    char        buf[TAM_LINEA];
+    const char* p;
+    char        c;
+
+    do
+    {
+        if (!fgets(buf, (int)sizeof(buf), stdin))
+        {
+            printf("[!] Error de lectura.\n");
+            continue;
+        }
+
+        {
+            char* nl = strrchr(buf, '\n');
+            if (nl) *nl = '\0';
+        }
+
+        /* Solo aceptar exactamente un caracter (sin espacios extra) */
+        if (buf[0] == '\0' || buf[1] != '\0')
+        {
+            printf("[!] Ingrese exactamente un caracter (%s): ", validos);
+            continue;
+        }
+
+        c = buf[0];
+
+        /* Buscar en la cadena de validos */
+        p = validos;
+        while (*p)
+        {
+            if (*p == c)
+            {
+                *dest = c;
+                return TODO_OK;
+            }
+            p++;
+        }
+
+        printf("[!] Caracter invalido. Opciones validas: %s: ", validos);
+
+    } while (1);
+}
+
+/* =========================================================
             Funciones genericas para archivos
    ========================================================= */
 
-/**
- * generarArchivoTexto
- * Recorre un array de structs y escribe cada uno en .txt
- * usando la funcion 'escribir' del TDA correspondiente.
- */
 int generarArchivoTexto(const char* rutaTxt,
                         const void* datos,
                         size_t      cantElem,
@@ -111,12 +300,6 @@ int generarArchivoTexto(const char* rutaTxt,
     return TODO_OK;
 }
 
-/**
- * convertirArchivoTxtABin
- * Lee linea a linea un .txt y convierte cada una a registro
- * binario usando la funcion 'txtABin' del TDA.
- * Lineas con ERR_LINEA se descartan sin abortar.
- */
 int convertirArchivoTxtABin(const char* rutaTxt,
                             const char* rutaBin,
                             size_t      tamElem,
@@ -166,11 +349,6 @@ int convertirArchivoTxtABin(const char* rutaTxt,
     return TODO_OK;
 }
 
-/**
- * convertirArchivoBinATxt
- * Lee registro a registro un .bin y convierte cada uno
- * a texto usando 'binATxt' del TDA.
- */
 int convertirArchivoBinATxt(const char* rutaBin,
                             const char* rutaTxt,
                             size_t      tamElem,
@@ -209,10 +387,6 @@ int convertirArchivoBinATxt(const char* rutaBin,
     return TODO_OK;
 }
 
-/**
- * mostrarArchivoBinario
- * Recorre un .bin y llama mostrar() por cada registro.
- */
 int mostrarArchivoBinario(const char* rutaBin,
                           size_t      tamElem,
                           Mostrar     mostrar)
@@ -240,12 +414,6 @@ int mostrarArchivoBinario(const char* rutaBin,
     return TODO_OK;
 }
 
-/**
- * procesarArchivoBinario
- * Recorre un .bin, aplica filtrar() y si pasa llama
- * procesar(datos, registro).
- * Uso tipico: acumular puntos de carreras activas.
- */
 int procesarArchivoBinario(const char* rutaBin,
                            void*       datos,
                            size_t      tamElem,
@@ -279,6 +447,65 @@ int procesarArchivoBinario(const char* rutaBin,
     fclose(fBin);
 
     return TODO_OK;
+}
+
+/* =========================================================
+   modificarRegistroEnBin
+   Busca el registro por clave y lo sobreescribe en disco.
+   No mueve otros registros: solo hace fseek + fwrite sobre
+   el registro encontrado.
+   ========================================================= */
+int modificarRegistroEnBin(const char*   rutaBin,
+                           size_t        tamElem,
+                           const void*   clave,
+                           Comparar      comparar,
+                           ObtenerClave  obtenerClave,
+                           ModificarReg  modificar)
+{
+    FILE*  fBin;
+    void*  reg;
+    void*  claveReg;
+    long   pos;
+    int    encontrado;
+
+    fBin = fopen(rutaBin, "r+b");   /* lectura/escritura sin truncar */
+    if (!fBin)
+        return ERR_ARCH;
+
+    reg      = malloc(tamElem);
+    claveReg = malloc(tamElem);     /* tamanio maximo posible para la clave */
+
+    if (!reg || !claveReg)
+    {
+        free(reg);
+        free(claveReg);
+        fclose(fBin);
+        return SIN_MEM;
+    }
+
+    encontrado = 0;
+
+    while (!encontrado && fread(reg, tamElem, 1, fBin) == 1)
+    {
+        obtenerClave(reg, claveReg);
+
+        if (comparar(clave, claveReg) == 0)
+        {
+            /* Retroceder exactamente un registro para sobreescribir */
+            pos = ftell(fBin);
+            fseek(fBin, pos - (long)tamElem, SEEK_SET);
+
+            modificar(reg);
+            fwrite(reg, tamElem, 1, fBin);
+            encontrado = 1;
+        }
+    }
+
+    free(reg);
+    free(claveReg);
+    fclose(fBin);
+
+    return encontrado ? TODO_OK : NO_ENCONTRADO;
 }
 
 /* =========================================================
@@ -317,11 +544,10 @@ int compararUnsigned(const void* a, const void* b)
 {
     unsigned ua = *(const unsigned*)a;
     unsigned ub = *(const unsigned*)b;
-    return (ua > ub) - (ua < ub);   /* sin overflow */
+    return (ua > ub) - (ua < ub);
 }
 
 int compararInt(const void* a, const void* b)
 {
     return (*(const int*)a - *(const int*)b);
 }
-

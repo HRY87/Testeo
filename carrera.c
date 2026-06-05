@@ -62,7 +62,8 @@ int leerCarrera(FILE* fCarrera, Carrera* c)
         if (fread(&rp, sizeof(ResultadoPiloto), 1, fCarrera) != 1)
             return ERR_ARCH;
 
-        memcpy((char*)c->resultados.vec + (c->resultados.ce * sizeof(ResultadoPiloto)),
+        memcpy((char*)c->resultados.vec +
+               (c->resultados.ce * sizeof(ResultadoPiloto)),
                &rp, sizeof(ResultadoPiloto));
         c->resultados.ce++;
     }
@@ -157,7 +158,8 @@ static int esPilotoDuplicado(const Carrera* c, unsigned idPiloto)
 
     while (k < c->resultados.ce && !encontrado)
     {
-        rp         = (ResultadoPiloto*)obtenerElementoVector((tVector*)&c->resultados, k);
+        rp         = (ResultadoPiloto*)obtenerElementoVector(
+                         (tVector*)&c->resultados, k);
         encontrado = (rp->id_piloto == idPiloto);
         k++;
     }
@@ -168,7 +170,7 @@ static int esPilotoDuplicado(const Carrera* c, unsigned idPiloto)
 /*
  * acumularPuntosDesdeCarrera
  * Suma los puntos de todos los resultados de una carrera
- * en el vector de pilotos.
+ * al vector de pilotos (busqueda binaria por id).
  */
 static void acumularPuntosDesdeCarrera(tVector* vPilotos, const Carrera* c)
 {
@@ -178,8 +180,11 @@ static void acumularPuntosDesdeCarrera(tVector* vPilotos, const Carrera* c)
 
     for (i = 0; i < (size_t)c->info.cant_resultados; i++)
     {
-        rp     = (ResultadoPiloto*)obtenerElementoVector((tVector*)&c->resultados, i);
-        piloto = (Piloto*)busquedaBinariaVector(vPilotos, &rp->id_piloto, compararUnsigned);
+        rp     = (ResultadoPiloto*)obtenerElementoVector(
+                     (tVector*)&c->resultados, i);
+        piloto = (Piloto*)busquedaBinariaVector(vPilotos,
+                                               &rp->id_piloto,
+                                               compararUnsigned);
 
         if (piloto && rp->puntos > 0)
             piloto->puntos_acumulados += (unsigned)rp->puntos;
@@ -206,12 +211,11 @@ static const char* estadoResultadoATexto(int estado)
  * Ordena el vector de resultados: primero los RES_FIN (en orden
  * de ingreso = orden de llegada), luego los demas (DNF/DNS/DSQ).
  * Usa insertion sort estable para mantener el orden relativo.
- * Mejora #2.
  */
 static void ordenarResultadosFINPrimero(tVector* vRes)
 {
-    size_t          i, j;
-    ResultadoPiloto tmp;
+    size_t           i, j;
+    ResultadoPiloto  tmp;
     ResultadoPiloto* actual;
     ResultadoPiloto* anterior;
 
@@ -219,10 +223,8 @@ static void ordenarResultadosFINPrimero(tVector* vRes)
     {
         actual = (ResultadoPiloto*)obtenerElementoVector(vRes, i);
 
-        /* Si ya esta bien ubicado, no hacer nada */
         if (actual->estado_resultado == RES_FIN)
         {
-            /* Mover atras de todos los no-FIN que quedaron antes */
             j = i;
             while (j > 0)
             {
@@ -230,8 +232,11 @@ static void ordenarResultadosFINPrimero(tVector* vRes)
                 if (anterior->estado_resultado != RES_FIN)
                 {
                     memcpy(&tmp,    anterior, sizeof(ResultadoPiloto));
-                    memcpy(anterior, obtenerElementoVector(vRes, j), sizeof(ResultadoPiloto));
-                    memcpy(obtenerElementoVector(vRes, j), &tmp, sizeof(ResultadoPiloto));
+                    memcpy(anterior,
+                           obtenerElementoVector(vRes, j),
+                           sizeof(ResultadoPiloto));
+                    memcpy(obtenerElementoVector(vRes, j), &tmp,
+                           sizeof(ResultadoPiloto));
                     j--;
                 }
                 else
@@ -245,7 +250,6 @@ static void ordenarResultadosFINPrimero(tVector* vRes)
  * completarConDNS
  * Agrega como DNS (0 puntos) todos los pilotos del vector vIdsActivos
  * que no hayan sido ingresados todavia en la carrera.
- * Mejora #3 (autocomplete).
  */
 static void completarConDNS(Carrera* c, const tVector* vIdsActivos)
 {
@@ -306,34 +310,30 @@ int registrarCarreraAleatoria(const char*         rutaCarrera,
 
     /* Mejora #9: avisar si la fecha es anterior a la ultima carrera */
     {
-        Carrera   tmp;
-        Carrera   ultima;
-        int       hayUltima = 0;
+        Carrera tmp;
+        Carrera ultima;
+        int     hayUltima = 0;
 
-        if (inicializarCarrera(&tmp, MAX_PILOTOS_CARRERA) == TODO_OK &&
+        if (inicializarCarrera(&tmp,   MAX_PILOTOS_CARRERA) == TODO_OK &&
             inicializarCarrera(&ultima, MAX_PILOTOS_CARRERA) == TODO_OK)
         {
             FILE* fLec = fopen(rutaCarrera, "rb");
             if (fLec)
             {
-                CarreraHeader tmpH;
-                tVector       tmpV;
-
                 while (leerCarrera(fLec, &tmp) == TODO_OK)
                 {
-                    tmpH         = ultima.info;
-                    tmpV         = ultima.resultados;
-                    ultima.info  = tmp.info;
-                    ultima.resultados = tmp.resultados;
-                    tmp.info     = tmpH;
-                    tmp.resultados = tmpV;
-                    hayUltima    = 1;
+                    ultima.info             = tmp.info;
+                    ultima.resultados.ce    = tmp.resultados.ce;
+                    memcpy(ultima.resultados.vec, tmp.resultados.vec,
+                           tmp.resultados.ce * sizeof(ResultadoPiloto));
+                    hayUltima = 1;
                 }
                 fclose(fLec);
             }
 
             if (hayUltima && nueva.info.fecha < ultima.info.fecha)
-                printf("[!] Advertencia: la fecha ingresada es anterior a la ultima carrera registrada.\n");
+                printf("[!] Advertencia: la fecha ingresada es anterior "
+                       "a la ultima carrera registrada.\n");
 
             destruirCarrera(&tmp);
             destruirCarrera(&ultima);
@@ -361,7 +361,7 @@ int registrarCarreraManual(const char*         rutaCarrera,
 {
     Carrera         nueva;
     ResultadoPiloto rp;
-    tVector         vIdsActivos;  /* para validar IDs y autocomplete */
+    tVector         vIdsActivos;
     FILE*           fCarrera;
     int             resp;
     int             pos;
@@ -408,8 +408,8 @@ int registrarCarreraManual(const char*         rutaCarrera,
     pedirDatosBase(&nueva);
 
     printf("\nTotal de pilotos activos: %d\n", totalActivos);
-    printf("Ingreso de resultados (ID piloto = 0 para terminar; pilotos\n");
-    printf("no ingresados se completaran automaticamente como DNS)\n");
+    printf("Ingreso de resultados (ID piloto = 0 para terminar;\n");
+    printf("pilotos no ingresados se completaran como DNS)\n");
     printf("Estados: 1=FIN  2=DNF  3=DNS  4=DSQ\n");
     printf("DNF/DNS/DSQ asignan 0 puntos automaticamente.\n");
     printf("--------------------------------------------\n");
@@ -437,7 +437,7 @@ int registrarCarreraManual(const char*         rutaCarrera,
         /* Mejora #2 + #10: verificar que existe Y esta activo */
         else if (busquedaBinariaVector(&vIdsActivos, &idIngresado, comparar) == NULL)
         {
-            printf("[!] Piloto ID %u no existe o no esta activo en esta temporada.\n",
+            printf("[!] Piloto ID %u no existe o no esta activo.\n",
                    idIngresado);
         }
         else if (esPilotoDuplicado(&nueva, idIngresado))
@@ -458,7 +458,7 @@ int registrarCarreraManual(const char*         rutaCarrera,
             }
             else
             {
-                /* FIN: sugerir puntos segun posicion en la tabla configurable */
+                /* FIN: sugerir puntos segun posicion de la tabla configurable */
                 puntosSug = puntosParaPosicion(cfg, pos);
 
                 printf("           Puntos (sugerido %2d, -1 para aceptar): ",
@@ -485,7 +485,7 @@ int registrarCarreraManual(const char*         rutaCarrera,
         }
     }
 
-    /* Mejora #3: autocomplete con DNS para pilotos no ingresados */
+    /* Autocomplete: pilotos no ingresados -> DNS */
     if ((int)nueva.resultados.ce < totalActivos)
     {
         printf("[i] Completando %d piloto(s) restante(s) como DNS...\n",
@@ -493,7 +493,7 @@ int registrarCarreraManual(const char*         rutaCarrera,
         completarConDNS(&nueva, &vIdsActivos);
     }
 
-    /* Mejora #2: ordenar FIN primero, luego DNF/DNS/DSQ */
+    /* Ordenar: FIN primero, luego DNF/DNS/DSQ */
     ordenarResultadosFINPrimero(&nueva.resultados);
 
     fseek(fCarrera, 0L, SEEK_END);
@@ -523,7 +523,7 @@ int cargarResultadosAleatorios(const char*         rutaPiloto,
         return ERR_ARCH;
     }
 
-    /* Mejora #1 de Mejoras.md: vector vacio = error descriptivo */
+    /* Mejora #1: vector vacio = error descriptivo */
     if (vIds.ce == 0)
     {
         printf("[!] No hay pilotos activos para generar la carrera.\n");
@@ -550,10 +550,9 @@ int cargarResultadosAleatorios(const char*         rutaPiloto,
     return TODO_OK;
 }
 
-/**
+/*
  * generarIdCarrera
- * Mejora #5: busca el MAXIMO id en el archivo, no el ultimo.
- * Evita colisiones si el archivo no esta en orden.
+ * Mejora #5: busca el MAXIMO id, no el ultimo.
  */
 int generarIdCarrera(FILE* fCarrera)
 {
@@ -585,12 +584,9 @@ int generarIdCarrera(FILE* fCarrera)
    Actualizacion de puntos en piloto.bin
    ========================================================= */
 
-/**
+/*
  * recalcularPuntosPilotos
- * Elimina el parametro Reduce que no se usaba (Mejora #12).
- * El vector de pilotos se carga sin orden garantizado desde
- * cargarVectorDesdeBin; la busqueda se hace linealmente
- * sobre un unsigned (id), que es suficiente para el lote.
+ * Mejora #12: parametro Reduce eliminado, no se usaba.
  */
 int recalcularPuntosPilotos(const char* rutaCarrera,
                             const char* rutaPiloto,
@@ -611,6 +607,7 @@ int recalcularPuntosPilotos(const char* rutaCarrera,
         return ERR_ARCH;
     }
 
+    /* Resetear puntos antes de recalcular */
     for (i = 0; i < vPilotos.ce; i++)
     {
         p = (Piloto*)obtenerElementoVector(&vPilotos, i);
@@ -645,11 +642,9 @@ int recalcularPuntosPilotos(const char* rutaCarrera,
     return TODO_OK;
 }
 
-/**
+/*
  * actualizarPuntosUltimaCarrera
- * Mejora #7: lee todas las carreras y guarda la ultima
- * directamente, sin swap manual de structs.
- * Elimina el parametro Reduce no usado (Mejora #12).
+ * Mejora #7 + #12: sin swap manual, sin parametro Reduce.
  */
 int actualizarPuntosUltimaCarrera(const char* rutaCarrera,
                                   const char* rutaPiloto,
@@ -670,7 +665,7 @@ int actualizarPuntosUltimaCarrera(const char* rutaCarrera,
         return ERR_ARCH;
     }
 
-    if (inicializarCarrera(&c,     MAX_PILOTOS_CARRERA) ||
+    if (inicializarCarrera(&c,      MAX_PILOTOS_CARRERA) ||
         inicializarCarrera(&ultima, MAX_PILOTOS_CARRERA))
     {
         destruirVector(&vPilotos);
@@ -688,14 +683,9 @@ int actualizarPuntosUltimaCarrera(const char* rutaCarrera,
 
     hayUltima = 0;
 
-    /*
-     * Mejora #7: en vez de swap manual de campos,
-     * acumular todas las carreras y quedarnos con la ultima
-     * copiando header + resultados por memcpy.
-     */
     while (leerCarrera(fCarrera, &c) == TODO_OK)
     {
-        ultima.info      = c.info;
+        ultima.info          = c.info;
         ultima.resultados.ce = c.resultados.ce;
         memcpy(ultima.resultados.vec, c.resultados.vec,
                c.resultados.ce * sizeof(ResultadoPiloto));
@@ -727,12 +717,12 @@ void mostrarCarrera(const void* dato)
     unsigned             anio = (unsigned)(h->fecha / 10000);
 
     printf("----------------------------------\n");
-    printf("ID Carrera  : %d\n",              h->id);
-    printf("Circuito    : %s\n",              h->circuito);
-    printf("Fecha       : %02u/%02u/%04u\n",  dia, mes, anio);
-    printf("Estado      : %s\n",              h->estado == ESTADO_CARRERA_ACTIVA
+    printf("ID Carrera  : %d\n",             h->id);
+    printf("Circuito    : %s\n",             h->circuito);
+    printf("Fecha       : %02u/%02u/%04u\n", dia, mes, anio);
+    printf("Estado      : %s\n",             h->estado == ESTADO_CARRERA_ACTIVA
            ? "Activa" : "Cancelada");
-    printf("Resultados  : %d pilotos\n",      h->cant_resultados);
+    printf("Resultados  : %d pilotos\n",     h->cant_resultados);
 }
 
 void mostrarCarreraCompleta(const Carrera* c)
@@ -744,17 +734,18 @@ void mostrarCarreraCompleta(const Carrera* c)
     unsigned               anio = (unsigned)(c->info.fecha / 10000);
 
     printf("==================================\n");
-    printf("ID Carrera  : %d\n",              c->info.id);
-    printf("Circuito    : %s\n",              c->info.circuito);
-    printf("Fecha       : %02u/%02u/%04u\n",  dia, mes, anio);
-    printf("Estado      : %s\n",              c->info.estado == ESTADO_CARRERA_ACTIVA
+    printf("ID Carrera  : %d\n",             c->info.id);
+    printf("Circuito    : %s\n",             c->info.circuito);
+    printf("Fecha       : %02u/%02u/%04u\n", dia, mes, anio);
+    printf("Estado      : %s\n",             c->info.estado == ESTADO_CARRERA_ACTIVA
            ? "Activa" : "Cancelada");
-    printf("Resultados  : %d pilotos\n",      c->info.cant_resultados);
+    printf("Resultados  : %d pilotos\n",     c->info.cant_resultados);
     printf("----------------------------------\n");
 
     for (i = 0; i < (int)c->resultados.ce; i++)
     {
-        rp = (const ResultadoPiloto*)obtenerElementoVector((tVector*)&c->resultados, i);
+        rp = (const ResultadoPiloto*)obtenerElementoVector(
+                 (tVector*)&c->resultados, i);
 
         printf("  Pos %2d | Piloto ID: %3u | Pts: %2d | %s\n",
                i + 1,
@@ -793,7 +784,7 @@ int filterEsCarreraActiva(const void* dato)
     return (((const CarreraHeader*)dato)->estado == ESTADO_CARRERA_ACTIVA);
 }
 
-/* Mejora #12: stub mantenido por compatibilidad con firmas existentes */
+/* Mejora #12: stub de compatibilidad, no hace nada */
 int reduceAcumularPuntosCarrera(void* acumulador, const void* dato)
 {
     (void)acumulador;
