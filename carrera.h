@@ -4,7 +4,7 @@
 #include "utilidades.h"
 #include "vector.h"
 #include "resultado.h"
-
+#include "puntos.h"
 /* =========================================================
    Rutas de archivos del TDA Carrera
    ========================================================= */
@@ -23,7 +23,6 @@
 #define TAM_NOMBRE_CIRCUITO       20
 #define MAX_PILOTOS_CARRERA       20
 #define MAX_CARRERAS_TEMPORADA    30
-#define POS_LIMITE_PUNTOS_CARRERA 10  /* Solo top 10 suman puntos */
 
 /* =========================================================
    Estructura de ENCABEZADO de carrera (parte fija en disco)
@@ -85,9 +84,10 @@ int leerCarrera(FILE* fCarrera, Carrera* c);
    ========================================================= */
 
 /* Modo automatico: posiciones generadas con Fisher-Yates */
-int registrarCarreraAleatoria(const char* rutaCarrera,
-                              const char* rutaPiloto,
-                              Comparar    comparar);
+int registrarCarreraAleatoria(const char*         rutaCarrera,
+                              const char*         rutaPiloto,
+                              Comparar            comparar,
+                              const ConfigPuntos* cfg);
 
 /* Modo manual: el usuario ingresa cada piloto, estado y puntos */
 int registrarCarreraManual(const char* rutaCarrera,
