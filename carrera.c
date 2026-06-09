@@ -287,7 +287,7 @@ static void completarConDNS(Carrera* c, const tVector* vIdsActivos)
 int registrarCarreraAleatoria(const char*         rutaCarrera,
                               const char*         rutaPiloto,
                               Comparar            comparar,
-                              const ConfigPuntos* cfg)
+                              const Puntos* cfg)
 {
     Carrera nueva;
     FILE*   fCarrera;
@@ -357,7 +357,7 @@ int registrarCarreraAleatoria(const char*         rutaCarrera,
 int registrarCarreraManual(const char*         rutaCarrera,
                            const char*         rutaPiloto,
                            Comparar            comparar,
-                           const ConfigPuntos* cfg)
+                           const Puntos* cfg)
 {
     Carrera         nueva;
     ResultadoPiloto rp;
@@ -508,7 +508,7 @@ int registrarCarreraManual(const char*         rutaCarrera,
 int cargarResultadosAleatorios(const char*         rutaPiloto,
                                Carrera*            c,
                                Comparar            comparar,
-                               const ConfigPuntos* cfg)
+                               const Puntos* cfg)
 {
     tVector         vIds;
     int             i;

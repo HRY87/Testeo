@@ -9,7 +9,7 @@
 /* Tabla estandar F1: top 10 */
 static const int puntos_f1_default[10] = {25, 18, 15, 12, 10, 8, 6, 4, 2, 1};
 
-void inicializarPuntosDefault(ConfigPuntos* cfg)
+void inicializarPuntosDefault(Puntos* cfg)
 {
     int i;
 
@@ -22,18 +22,18 @@ void inicializarPuntosDefault(ConfigPuntos* cfg)
         cfg->tabla[i] = 0;
 }
 
-int guardarConfigPuntos(const char* ruta, const ConfigPuntos* cfg)
+int guardarConfigPuntos(const char* ruta, const Puntos* cfg)
 {
     FILE* f = fopen(ruta, "wb");
     if (!f)
         return ERR_ARCH;
 
-    fwrite(cfg, sizeof(ConfigPuntos), 1, f);
+    fwrite(cfg, sizeof(Puntos), 1, f);
     fclose(f);
     return TODO_OK;
 }
 
-int cargarConfigPuntos(const char* ruta, ConfigPuntos* cfg)
+int cargarConfigPuntos(const char* ruta, Puntos* cfg)
 {
     FILE* f = fopen(ruta, "rb");
     if (!f)
@@ -44,7 +44,7 @@ int cargarConfigPuntos(const char* ruta, ConfigPuntos* cfg)
         return TODO_OK;
     }
 
-    if (fread(cfg, sizeof(ConfigPuntos), 1, f) != 1)
+    if (fread(cfg, sizeof(Puntos), 1, f) != 1)
     {
         fclose(f);
         inicializarPuntosDefault(cfg);
@@ -55,14 +55,14 @@ int cargarConfigPuntos(const char* ruta, ConfigPuntos* cfg)
     return TODO_OK;
 }
 
-int puntosParaPosicion(const ConfigPuntos* cfg, int posicion)
+int puntosParaPosicion(const Puntos* cfg, int posicion)
 {
     if (!cfg || posicion < 1 || posicion > cfg->posiciones)
         return 0;
     return cfg->tabla[posicion - 1];
 }
 
-void mostrarConfigPuntos(const ConfigPuntos* cfg)
+void mostrarConfigPuntos(const Puntos* cfg)
 {
     int i;
 

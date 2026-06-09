@@ -13,21 +13,21 @@ typedef struct
 {
     int  posiciones;            /* cuantas posiciones otorgan puntos */
     int  tabla[MAX_POSICIONES_PUNTOS]; /* tabla[0] = puntos pos 1, etc. */
-} ConfigPuntos;
+} Puntos;
 
 /* Inicializa con la tabla estandar de F1 (10 posiciones) */
-void  inicializarPuntosDefault(ConfigPuntos* cfg);
+void  inicializarPuntosDefault(Puntos* cfg);
 
 /* Guarda la tabla en disco */
-int   guardarConfigPuntos(const char* ruta, const ConfigPuntos* cfg);
+int   guardarConfigPuntos(const char* ruta, const Puntos* cfg);
 
 /* Carga desde disco; si no existe, usa valores por defecto */
-int   cargarConfigPuntos(const char* ruta, ConfigPuntos* cfg);
+int   cargarConfigPuntos(const char* ruta, Puntos* cfg);
 
 /* Retorna los puntos para una posicion (base 1). 0 si fuera de rango. */
-int   puntosParaPosicion(const ConfigPuntos* cfg, int posicion);
+int   puntosParaPosicion(const Puntos* cfg, int posicion);
 
 /* Muestra la tabla de puntos por pantalla */
-void  mostrarConfigPuntos(const ConfigPuntos* cfg);
+void  mostrarConfigPuntos(const Puntos* cfg);
 
 #endif // PUNTOS_H_INCLUDED

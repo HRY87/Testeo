@@ -89,14 +89,14 @@ int leerCarrera(FILE* fCarrera, Carrera* c);
 int registrarCarreraAleatoria(const char*         rutaCarrera,
                               const char*         rutaPiloto,
                               Comparar            comparar,
-                              const ConfigPuntos* cfg);
+                              const Puntos* cfg);
 
 /* Modo manual: el usuario ingresa cada piloto, estado y puntos.
    cfg se usa para sugerir puntos segun posicion. */
 int registrarCarreraManual(const char*         rutaCarrera,
                            const char*         rutaPiloto,
                            Comparar            comparar,
-                           const ConfigPuntos* cfg);
+                           const Puntos* cfg);
 
 /* Generador de ID: busca el MAXIMO id en el archivo y retorna maximo+1.
    Retorna 1 si el archivo esta vacio. */
@@ -107,7 +107,7 @@ int generarIdCarrera(FILE* fCarrera);
 int cargarResultadosAleatorios(const char*         rutaPiloto,
                                Carrera*            c,
                                Comparar            comparar,
-                               const ConfigPuntos* cfg);
+                               const Puntos* cfg);
 
 /* =========================================================
    Actualizacion de puntos en piloto.bin

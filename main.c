@@ -12,7 +12,7 @@
 static void inicializarSistema(void);
 static int  mostrarMenu(void);
 static int  mostrarSubMenuCarrera(void);
-static void editarTablaPuntos(ConfigPuntos* cfg);
+static void editarTablaPuntos(Puntos* cfg);
 
 /* =========================================================
    Punto de entrada
@@ -21,7 +21,7 @@ int main(void)
 {
     int          opcion;
     int          subOpcion;
-    ConfigPuntos cfg;
+    Puntos cfg;
 
     inicializarSistema();
 
@@ -200,7 +200,7 @@ static int mostrarSubMenuCarrera(void)
  * de posiciones con puntos y editar cada valor.
  * Persiste los cambios en RUTA_PUNTOS_BIN al confirmar.
  */
-static void editarTablaPuntos(ConfigPuntos* cfg)
+static void editarTablaPuntos(Puntos* cfg)
 {
     int i;
     int nuevasCantPos;
