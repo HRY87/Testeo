@@ -1,7 +1,6 @@
 #ifndef PUNTOS_H_INCLUDED
 #define PUNTOS_H_INCLUDED
 
-
 /* =========================================================
    Tabla de puntos configurable
    Cargada desde archivo o con valores F1 por defecto.
@@ -16,18 +15,18 @@ typedef struct
 } Puntos;
 
 /* Inicializa con la tabla estandar de F1 (10 posiciones) */
-void  inicializarPuntosDefault(Puntos* cfg);
+void  inicializarPuntosDefault(Puntos* vPuntos);
 
 /* Guarda la tabla en disco */
-int   guardarConfigPuntos(const char* ruta, const Puntos* cfg);
+int   guardarConfigPuntos(const char* ruta, const Puntos* vPuntos);
 
 /* Carga desde disco; si no existe, usa valores por defecto */
-int   cargarConfigPuntos(const char* ruta, Puntos* cfg);
+int   cargarConfigPuntos(const char* ruta, Puntos* vPuntos);
 
 /* Retorna los puntos para una posicion (base 1). 0 si fuera de rango. */
-int   puntosParaPosicion(const Puntos* cfg, int posicion);
+int   puntosParaPosicion(const Puntos* vPuntos, int posicion);
 
 /* Muestra la tabla de puntos por pantalla */
-void  mostrarConfigPuntos(const Puntos* cfg);
+void  mostrarConfigPuntos(const Puntos* vPuntos);
 
 #endif // PUNTOS_H_INCLUDED

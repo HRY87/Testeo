@@ -26,20 +26,39 @@
 
 /* =========================================================
    Separador de campos en archivos de texto.
+   Cambiar aqui afecta a TODO el proyecto: trozar*, escribir*
    ========================================================= */
 #define SEP_TXT         '|'
-
 /* =========================================================
                 Punteros a funcion genericos
+   Todos los modulos (Piloto, Escuderia, Carrera) deben
+   proveer implementaciones de estos tipos cuando corresponda.
    ========================================================= */
-typedef int  (*Comparar)(const void* d1, const void* d2);
-typedef void (*Mostrar) (const void* dato);
-typedef int  (*Accion)  (void* contexto, const void* dato);
-typedef int  (*TxtABin) (char* linea, void* registro);
-typedef void (*BinATxt) (const void* dato, FILE* archTxt);
-typedef int  (*Filter)  (const void* dato);
-typedef int  (*Reduce)  (void* acumulador, const void* dato);
-typedef int  (*Map)     (void* destino, const void* origen);
+
+/* Compara dos elementos. Retorna <0, 0 o >0 */
+typedef int(*Comparar)(const void* d1, const void* d2);
+
+/* Muestra un elemento por pantalla */
+typedef void(*Mostrar)(const void* dato);
+
+/* Accion sobre un dato (ej: escribir en archivo texto) */
+typedef int(*Accion)(void* contexto, const void* dato);
+
+/* Convierte una linea de texto en un registro binario.
+   Retorna TODO_OK si la linea es valida, ERR_LINEA si no. */
+typedef int(*TxtABin)(char* linea, void* registro);
+
+/* Convierte un registro binario a texto (escribe en FILE*) */
+typedef void(*BinATxt)(const void* dato, FILE* archTxt);
+
+/* Filtra un elemento: retorna 1 si pasa el filtro, 0 si no */
+typedef int  (*Filter)(const void* dato);
+
+/* Reduce: acumula informacion de un elemento en acumulador */
+typedef int(*Reduce)(void* acumulador, const void* dato);
+
+/* Mapea un elemento de origen a destino (transformacion) */
+typedef int(*Map)(void* destino, const void* origen);
 
 /* =========================================================
                     Funciones de cadena
@@ -50,89 +69,39 @@ void limpiarBuffer(void);
 void intercambiar(void* d1, void* d2, size_t tam);
 
 /* =========================================================
-         Lectura segura de tipos numericos desde stdin
-
-   Todas leen una linea completa, la convierten y validan.
-   Si el usuario ingresa letras donde se pide un numero,
-   o el valor esta fuera del rango [min, max], reintentan.
-   Retornan TODO_OK cuando el valor es valido.
-
-   Uso tipico:
-       int opcion;
-       leerInt(&opcion, 0, 5);
-
-       unsigned id;
-       leerUnsigned(&id, 1, 9999);
-
-       unsigned long long fecha;
-       leerUnsignedLongLong(&fecha);          <- sin rango, solo que sea numero
-
-       char estado;
-       leerChar(&estado, "ARS");              <- solo acepta A, R o S
-   ========================================================= */
-
-/* Lee un int en [min, max]. Reinicia si la entrada no es numerica
-   o esta fuera de rango. */
-int leerInt(int* dest, int min, int max);
-
-/* Lee un unsigned en [min, max]. */
-int leerUnsigned(unsigned* dest, unsigned min, unsigned max);
-
-/* Lee un unsigned long long sin rango (solo valida que sea numerico). */
-int leerUnsignedLongLong(unsigned long long* dest);
-
-/* Lee un char que pertenezca a la cadena 'validos' (case-sensitive).
-   Ejemplo: leerChar(&c, "ARS") acepta solo 'A', 'R' o 'S'. */
-int leerChar(char* dest, const char* validos);
-
-/* =========================================================
                 Funciones para archivos
    ========================================================= */
+
+/* Genera un .txt a partir de un array de structs en memoria */
 int generarArchivoTexto(const char* rutaTxt,
                         const void* datos,
                         size_t cantElem,
                         size_t tamElem,
                         Accion escribir);
 
+/* Convierte un .bin a .txt usando la funcion binATxt del TDA */
 int convertirArchivoBinATxt(const char* rutaBin,
                             const char* rutaTxt,
                             size_t tamElem,
                             BinATxt binATxt);
 
+/* Convierte un .txt a .bin usando la funcion txtABin del TDA */
 int convertirArchivoTxtABin(const char* rutaTxt,
                             const char* rutaBin,
                             size_t tamElem,
                             TxtABin txtABin);
 
+/* Recorre un .bin y llama mostrar() por cada registro */
 int mostrarArchivoBinario(const char* rutaBin,
                           size_t tamElem,
                           Mostrar mostrar);
 
+/* Recorre un .bin, filtra con filtrar() y procesa con procesar() */
 int procesarArchivoBinario(const char* rutaBin,
                            void* datos,
                            size_t tamElem,
                            Filter filtrar,
                            Accion procesar);
-
-/* =========================================================
-   Modificacion de un registro en un archivo binario.
-
-   Recorre el .bin buscando el registro cuya clave
-   (extraida con 'obtenerClave') coincida con 'clave'
-   segun 'comparar'. Cuando lo encuentra, llama a
-   'modificar(registro)' y lo sobreescribe en disco.
-
-   Retorna TODO_OK, NO_ENCONTRADO o ERR_ARCH.
-   ========================================================= */
-typedef void (*ObtenerClave)(const void* registro, void* claveDestino);
-typedef void (*ModificarReg)(void* registro);
-
-int modificarRegistroEnBin(const char*   rutaBin,
-                           size_t        tamElem,
-                           const void*   clave,
-                           Comparar      comparar,
-                           ObtenerClave  obtenerClave,
-                           ModificarReg  modificar);
 
 /* =========================================================
                     Funciones para fechas

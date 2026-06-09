@@ -24,6 +24,7 @@
 
 /* =========================================================
    Estructura Escuderia
+   Corresponde exactamente al registro binario en escuderia.bin
    ========================================================= */
 typedef struct
 {
@@ -31,42 +32,46 @@ typedef struct
     char     codigo[TAM_CODIGO];
     char     nombre[TAM_NOMBRE_ESCUDERIA];
     char     pais[TAM_PAIS];
-    int      estado;
+    int      estado;  /* 1: activa, 0: inactiva */
 } Escuderia;
 
 /* =========================================================
    Generacion de archivos (inicializacion)
    ========================================================= */
+
+/* Genera el lote inicial de prueba en escuderia.txt */
 int generarArchivoEscuderiasTxt(const char* rutaTxt);
 
 /* =========================================================
-   ABM sobre escuderia.dat
+            ABM directo sobre archivo binario
    ========================================================= */
 
-/* Alta: pide datos al usuario y agrega la escuderia al .dat. */
-int altaEscuderia(const char* rutaBin);
+/* Busca una escuderia por ID.
+   Retorna el offset del registro o -1L si no existe. */
+long buscarEscuderiaEnBin(const char* rutaBin, unsigned idBuscado, Escuderia* dest);
 
-/* Baja logica: cambia estado a 0 (inactiva). */
-int bajaEscuderia(const char* rutaBin);
+/* Baja logica: pone estado = ESTADO_ESCUDERIA_INACTIVA */
+int darBajaEscuderia(const char* rutaBin, unsigned idEscuderia);
 
-/* Modificacion: busca por ID y permite editar campos. */
-int modificarEscuderia(const char* rutaBin);
-
-/* =========================================================
-   Exportacion a texto al finalizar la temporada
-   ========================================================= */
-int exportarEscuderiasATxt(const char* rutaBin, const char* rutaTxt);
-
+/* Modificacion campo a campo, sobreescribe solo ese registro */
+int modificarEscuderia(const char* rutaBin, unsigned idEscuderia);
 /* =========================================================
    Punteros a funcion del TDA Escuderia
    ========================================================= */
-int  trozarEscuderiaTxt(char* linea, void* reg);
-void escuderiaBinATxt(const void* dato, FILE* archTxt);
-int  escribirEscuderiaTxt(void* archTxt, const void* dato);
-void mostrarEscuderia(const void* dato);
-int  esEscuderiaActiva(const void* dato);
 
-/* Callback para modificarRegistroEnBin */
-void escuderiaObtenerClave(const void* registro, void* claveDestino);
+/* TxtABin: parsea una linea CSV y carga una Escuderia */
+int  trozarEscuderiaTxt(char* linea, void* reg);
+
+/* BinATxt: escribe una Escuderia en formato CSV al txt */
+void escuderiaBinATxt(const void* dato, FILE* archTxt);
+
+/* Accion (para generarArchivoTexto): escribe Escuderia en FILE* */
+int  escribirEscuderiaTxt(void* archTxt, const void* dato);
+
+/* Mostrar: imprime una Escuderia formateada por pantalla */
+void mostrarEscuderia(const void* dato);
+
+/* Filter: retorna 1 si la escuderia esta activa */
+int  esEscuderiaActiva(const void* dato);
 
 #endif // ESCUDERIA_H_INCLUDED

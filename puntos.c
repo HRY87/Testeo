@@ -9,45 +9,45 @@
 /* Tabla estandar F1: top 10 */
 static const int puntos_f1_default[10] = {25, 18, 15, 12, 10, 8, 6, 4, 2, 1};
 
-void inicializarPuntosDefault(Puntos* cfg)
+void inicializarPuntosDefault(Puntos* vPuntos)
 {
     int i;
 
-    cfg->posiciones = 10;
-    for (i = 0; i < cfg->posiciones; i++)
-        cfg->tabla[i] = puntos_f1_default[i];
+    vPuntos->posiciones = 10;
+    for (i = 0; i < vPuntos->posiciones; i++)
+        vPuntos->tabla[i] = puntos_f1_default[i];
 
     /* Rellenar el resto con 0 */
-    for (i = cfg->posiciones; i < MAX_POSICIONES_PUNTOS; i++)
-        cfg->tabla[i] = 0;
+    for (i = vPuntos->posiciones; i < MAX_POSICIONES_PUNTOS; i++)
+        vPuntos->tabla[i] = 0;
 }
 
-int guardarConfigPuntos(const char* ruta, const Puntos* cfg)
+int guardarConfigPuntos(const char* ruta, const Puntos* vPuntos)
 {
     FILE* f = fopen(ruta, "wb");
     if (!f)
         return ERR_ARCH;
 
-    fwrite(cfg, sizeof(Puntos), 1, f);
+    fwrite(vPuntos, sizeof(Puntos), 1, f);
     fclose(f);
     return TODO_OK;
 }
 
-int cargarConfigPuntos(const char* ruta, Puntos* cfg)
+int cargarConfigPuntos(const char* ruta, Puntos* vPuntos)
 {
     FILE* f = fopen(ruta, "rb");
     if (!f)
     {
         /* No existe: usar defaults y persistir para proximas veces */
-        inicializarPuntosDefault(cfg);
-        guardarConfigPuntos(ruta, cfg);
+        inicializarPuntosDefault(vPuntos);
+        guardarConfigPuntos(ruta, vPuntos);
         return TODO_OK;
     }
 
-    if (fread(cfg, sizeof(Puntos), 1, f) != 1)
+    if (fread(vPuntos, sizeof(Puntos), 1, f) != 1)
     {
         fclose(f);
-        inicializarPuntosDefault(cfg);
+        inicializarPuntosDefault(vPuntos);
         return ERR_ARCH;
     }
 
@@ -55,20 +55,20 @@ int cargarConfigPuntos(const char* ruta, Puntos* cfg)
     return TODO_OK;
 }
 
-int puntosParaPosicion(const Puntos* cfg, int posicion)
+int puntosParaPosicion(const Puntos* vPuntos, int posicion)
 {
-    if (!cfg || posicion < 1 || posicion > cfg->posiciones)
+    if (!vPuntos || posicion < 1 || posicion > vPuntos->posiciones)
         return 0;
-    return cfg->tabla[posicion - 1];
+    return vPuntos->tabla[posicion - 1];
 }
 
-void mostrarConfigPuntos(const Puntos* cfg)
+void mostrarConfigPuntos(const Puntos* vPuntos)
 {
     int i;
 
-    printf("Tabla de puntos actual (%d posiciones):\n", cfg->posiciones);
+    printf("Tabla de puntos actual (%d posiciones):\n", vPuntos->posiciones);
     printf("  Pos | Pts\n");
     printf("  ----+----\n");
-    for (i = 0; i < cfg->posiciones; i++)
-        printf("  %3d | %3d\n", i + 1, cfg->tabla[i]);
+    for (i = 0; i < vPuntos->posiciones; i++)
+        printf("  %3d | %3d\n", i + 1, vPuntos->tabla[i]);
 }
