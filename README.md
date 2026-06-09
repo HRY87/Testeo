@@ -8,7 +8,7 @@
 
 ## Descripción
 
-Sistema de gestión de una temporada de Fórmula 1 desarrollado en C. Permite registrar pilotos, escuderías y carreras, calcular puntos acumulados y consultar estadísticas de la temporada.
+Sistema de gestión de una temporada de Fórmula 1 desarrollado en C. Permite registrar pilotos, escuderías y carreras, calcular puntos acumulados, consultar estadísticas de la temporada y realizar altas, bajas lógicas y modificaciones sobre todas las entidades.
 
 El diseño se basa en **Tipos de Datos Abstractos (TDA)** con separación estricta de módulos `.c`/`.h`, uso de **memoria dinámica** y **funciones genéricas mediante punteros a función** (`Filter`, `Reduce`, `Map`, `Comparar`, etc.).
 
@@ -23,6 +23,8 @@ TP_F1/
 ├── escuderia.c / escuderia.h
 ├── carrera.c / carrera.h
 ├── resultado.h
+├── puntos.c / puntos.h
+├── sancion.c / sancion.h
 ├── vector.c / vector.h
 ├── utilidades.c / utilidades.h
 └── archivos/
@@ -30,7 +32,8 @@ TP_F1/
     ├── piloto.dat       ← binario generado
     ├── escuderia.txt    ← carga inicial
     ├── escuderia.dat    ← binario generado
-    └── carrera.dat      ← carreras registradas
+    ├── carrera.dat      ← carreras registradas
+    └── puntos.dat       ← tabla de puntos configurable
 ```
 
 ---
@@ -131,11 +134,14 @@ typedef struct {
 **Funciones clave:**
 
 ```c
-int generarArchivoPilotosTxt(const char* rutaTxt);
-int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar cmp);
-int trozarPilotoTxt(char* linea, void* reg);   // TxtABin
-void mostrarPiloto(const void* dato);           // Mostrar
-int  esPilotoActivo(const void* dato);          // Filter
+int  generarArchivoPilotosTxt(const char* rutaTxt);
+int  cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar cmp);
+int  trozarPilotoTxt(char* linea, void* reg);    // TxtABin
+void mostrarPiloto(const void* dato);             // Mostrar
+int  esPilotoActivo(const void* dato);            // Filter
+long buscarPilotoEnBin(rutaBin, idBuscado, dest); // offset o -1L
+int  darBajaPiloto(rutaBin, rutaCarrera, id);     // baja lógica
+int  modificarPiloto(rutaBin, id);                // edición campo a campo
 ```
 
 ---
@@ -162,6 +168,16 @@ Escuderías de la temporada 2026:
 | 4 | WLF | Williams | Reino Unido |
 | 5 | AMR | Aston Martin | Reino Unido |
 | 6 | SAU | Sauber | Suiza |
+
+**Funciones clave:**
+
+```c
+int  generarArchivoEscuderiasTxt(const char* rutaTxt);
+int  trozarEscuderiaTxt(char* linea, void* reg);           // TxtABin
+long buscarEscuderiaEnBin(rutaBin, idBuscado, dest);       // offset o -1L
+int  darBajaEscuderia(rutaBin, idEscuderia);               // baja lógica
+int  modificarEscuderia(rutaBin, idEscuderia);             // edición campo a campo
+```
 
 ---
 
@@ -190,7 +206,7 @@ typedef struct {
 } Carrera;
 ```
 
-**Tabla de puntos F1 (top 10):**
+**Tabla de puntos F1 (top 10, configurable):**
 
 | Pos | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
 |-----|---|---|---|---|---|---|---|---|---|---|
@@ -199,7 +215,7 @@ typedef struct {
 **Modos de registro:**
 
 - **Aleatorio:** genera posiciones con Fisher-Yates sobre los pilotos activos. Todos con estado `RES_FIN` y puntos según tabla.
-- **Manual:** el usuario ingresa cada piloto y su estado. `RES_DNF`, `RES_DNS` y `RES_DSQ` asignan 0 puntos automáticamente sin preguntar.
+- **Manual:** el usuario ingresa cada piloto y su estado. `RES_DNF`, `RES_DNS` y `RES_DSQ` asignan 0 puntos automáticamente. Los pilotos no ingresados se completan automáticamente como `DNS`.
 
 **Actualización de puntos — dos estrategias:**
 
@@ -209,6 +225,22 @@ int recalcularPuntosPilotos(rutaCarrera, rutaPiloto, Filter, Reduce);
 
 // Suma solo la última carrera (más eficiente)
 int actualizarPuntosUltimaCarrera(rutaCarrera, rutaPiloto, Filter, Reduce);
+```
+
+**ABM sobre `carrera.dat`:**
+
+```c
+long buscarCarreraHeaderEnBin(rutaBin, idBuscado, dest); // recorrido secuencial (formato variable)
+int  darBajaCarrera(rutaBin, rutaPiloto, idCarrera);     // baja lógica + recalculo automático
+int  modificarCarrera(rutaBin, idCarrera);               // edita circuito y/o fecha
+```
+
+**Funciones auxiliares de carrera:**
+
+```c
+void ordenarResultados(tVector* vRes);                    // RES_FIN primero, insertion sort estable
+void autocompletarResultados(Carrera* c, vIdsActivos);    // completa ausentes como DNS
+int  listarTodasLasCarreras(const char* rutaCarrera);
 ```
 
 ---
@@ -234,11 +266,31 @@ typedef struct {
 
 ---
 
+### `puntos` — Tabla de puntos configurable
+
+Permite personalizar cuántas posiciones suman puntos y cuántos puntos otorga cada una. Se persiste en `archivos/puntos.dat` y se carga al iniciar el sistema.
+
+```c
+typedef struct {
+    int posiciones;                    // cuántas posiciones otorgan puntos
+    int tabla[MAX_POSICIONES_PUNTOS];  // tabla[0] = puntos pos 1, etc.
+} Puntos;
+
+void inicializarPuntosDefault(Puntos* vPuntos);      // valores F1 estándar
+int  guardarConfigPuntos(ruta, vPuntos);
+int  cargarConfigPuntos(ruta, vPuntos);              // genera defaults si no existe
+int  puntosParaPosicion(vPuntos, posicion);          // 0 si fuera de rango
+void mostrarConfigPuntos(vPuntos);
+```
+
+---
+
 ## Flujo de datos
 
 ```
 piloto.txt  ──────────────► piloto.dat
 escuderia.txt ────────────► escuderia.dat
+puntos.dat (config) ──────► Puntos (en memoria)
                                 │
                          [en memoria]
                            tVector
@@ -267,9 +319,26 @@ escuderia.txt ────────────► escuderia.dat
 |     └─ 2. Ingreso manual            |
 |  3. Listar escuderías               |
 |  4. Ver todas las carreras          |
+|-------------------------------------|
+|  5. ABM Pilotos                     |
+|  6. ABM Escuderías                  |
+|  7. ABM Carreras                    |
+|  8. Configurar tabla de puntos      |
+|-------------------------------------|
 |  0. Salir                           |
 +=====================================+
 ```
+
+---
+
+## Validaciones implementadas
+
+- Fecha de carrera con formato AAAAMMDD y validación de rango (incluyendo años bisiestos).
+- Advertencia si la fecha ingresada es anterior a la última carrera registrada.
+- Verificación de que el ID de piloto exista **y** esté activo antes de aceptarlo en carrera manual.
+- Detección de piloto duplicado dentro de la misma carrera.
+- Reintento ante entrada no numérica en los `scanf` de estado y puntos.
+- Vector vacío de pilotos activos retorna `VEC_VACIO` con mensaje descriptivo.
 
 ---
 
@@ -280,6 +349,7 @@ El proyecto usa **Code::Blocks 25.03** con compilador `gcc`.
 Abrí `TP_F1.cbp` y compilá con **Build → Build** (o `Ctrl+F9`).
 
 Flags utilizados:
+
 - Debug: `-g -Wall`
 - Release: `-O2 -Wall -s`
 
@@ -301,3 +371,20 @@ El ejecutable necesita que exista la carpeta `archivos/` en el directorio de tra
 | 8 | Fernando Alonso | Aston Martin | ESP |
 | 9 | Lance Stroll | Aston Martin | CAN |
 | 10 | Nico Hülkenberg | Sauber | GER |
+
+---
+
+## Lote de prueba sugerido
+
+| # | Caso | Qué verificar |
+|---|------|---------------|
+| 1 | 0 pilotos activos | Todos en estado `R` o `S`, intentar carrera aleatoria → `VEC_VACIO` |
+| 2 | 1 solo piloto activo | Carrera aleatoria con un único participante |
+| 3 | ID inexistente en manual | Ingresar ID `999` → rechazo con mensaje |
+| 4 | Mismo piloto dos veces | Ingresar el mismo ID dos veces → rechazo por duplicado |
+| 5 | Fecha inválida | Probar `20261340`, `0`, y letras → reintento |
+| 6 | Piloto con DNF/DNS/DSQ | Verificar que aparece en resultados con 0 puntos |
+| 7 | Carrera sin resultados | Terminar ingreso manual con ID `0` sin cargar ningún piloto |
+| 8 | Input no numérico en menú | Ingresar `abc` en cualquier `scanf` numérico → reintento |
+| 9 | Baja de carrera | Dar de baja una carrera y verificar que los puntos se recalculan |
+| 10 | Tabla de puntos custom | Cambiar tabla y registrar carrera → verificar puntos asignados |
