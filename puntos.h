@@ -1,32 +1,40 @@
 #ifndef PUNTOS_H_INCLUDED
 #define PUNTOS_H_INCLUDED
 
-/* =========================================================
-   Tabla de puntos configurable
-   Cargada desde archivo o con valores F1 por defecto.
-   ========================================================= */
-#define MAX_POSICIONES_PUNTOS  20   /* maximo de posiciones con puntos */
-#define RUTA_PUNTOS_BIN        "archivos/puntos.dat"
+#include "vector.h"
 
+#define RUTA_PUNTOS_TXT  "archivos/puntos.txt"
+
+/*
+ * TDA Puntos
+ * Usa tVector internamente para almacenar la tabla de forma dinámica.
+ * El vector guarda int. Índice 0 = posición 0 (siempre 0 puntos).
+ * Índice i = puntos para la posición i (base 1).
+ *
+ * Formato puntos.txt (una línea por posición, empezando en 0):
+ *   0
+ *   25
+ *   18
+ *   ...
+ */
 typedef struct
 {
-    int  posiciones;            /* cuantas posiciones otorgan puntos */
-    int  tabla[MAX_POSICIONES_PUNTOS]; /* tabla[0] = puntos pos 1, etc. */
+    tVector tabla; /* vector de int: tabla[i] = puntos para posición i */
 } Puntos;
 
-/* Inicializa con la tabla estandar de F1 (10 posiciones) */
-void  inicializarPuntosDefault(Puntos* vPuntos);
+/* Genera puntos.txt con los defaults de F1 si no existe */
+int  generarArchivoPuntosTxt(const char* ruta);
 
-/* Guarda la tabla en disco */
-int   guardarConfigPuntos(const char* ruta, const Puntos* vPuntos);
+/* Carga desde .txt al vector; si no existe, genera el archivo y carga defaults */
+int  cargarConfigPuntos(const char* ruta, Puntos* p);
 
-/* Carga desde disco; si no existe, usa valores por defecto */
-int   cargarConfigPuntos(const char* ruta, Puntos* vPuntos);
+/* Retorna puntos para una posición (base 1). 0 si fuera de rango. */
+int  obtenerPuntosPorPosicion(const Puntos* p, int posicion);
 
-/* Retorna los puntos para una posicion (base 1). 0 si fuera de rango. */
-int   puntosParaPosicion(const Puntos* vPuntos, int posicion);
+/* Muestra la tabla por pantalla */
+void mostrarConfigPuntos(const Puntos* p);
 
-/* Muestra la tabla de puntos por pantalla */
-void  mostrarConfigPuntos(const Puntos* vPuntos);
+/* Libera el vector interno */
+void destruirPuntos(Puntos* p);
 
 #endif // PUNTOS_H_INCLUDED

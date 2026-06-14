@@ -1,424 +1,174 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "carrera.h"
 #include "piloto.h"
-
+#include "utilidades.h"
+#include "vector.h"
+#include "puntos.h"
 
 /* =========================================================
-                    Ciclo de vida
+   Ciclo de vida del TDA Carrera
    ========================================================= */
 
-int inicializarCarrera(Carrera* c, int capacidad)
+/*
+ * inicializarCarrera
+ * Reserva el vector interno de Resultado con capacidad cantPilotos.
+ * Debe llamarse antes de usar carrera.resultados.
+ */
+int inicializarCarrera(Carrera* c, int cantPilotos)
 {
-    memset(&c->info, 0, sizeof(CarreraHeader));
-    return crearVector(&c->resultados, sizeof(ResultadoPiloto), (size_t)capacidad);
+    c->cant_resultados = 0;
+    return crearVector(&c->resultados, sizeof(Resultado), cantPilotos);
 }
 
+/*
+ * destruirCarrera
+ * Libera la memoria del vector interno.
+ * Llamar siempre que se termine de usar una Carrera cargada desde archivo.
+ */
 void destruirCarrera(Carrera* c)
 {
     destruirVector(&c->resultados);
+    c->cant_resultados = 0;
 }
 
 /* =========================================================
-   Serializacion: unica interfaz con carrera.bin
+   Serializacion
+   No se puede usar fread/fwrite directo sobre Carrera porque
+   tVector tiene un void* interno que apunta al heap.
+   Estas dos funciones encapsulan toda la I/O de Carrera.
    ========================================================= */
 
-int escribirCarrera(FILE* fCarrera, const Carrera* c)
+/*
+ * escribirCarrera
+ * Guarda primero los campos fijos del struct (todo menos tVector)
+ * y despues los datos del heap (el arreglo de Resultado).
+ */
+int escribirCarrera(FILE* f, const Carrera* c)
 {
-    size_t                 i;
-    const ResultadoPiloto* rp;
+    /* Tamanio de los campos fijos: todo el struct menos el tVector */
+    size_t tamCabecera = sizeof(Carrera) - sizeof(tVector);
 
-    if (fwrite(&c->info, sizeof(CarreraHeader), 1, fCarrera) != 1)
+    if (fwrite(c, tamCabecera, 1, f) != 1)
         return ERR_ARCH;
 
-    for (i = 0; i < (size_t)c->info.cant_resultados; i++)
-    {
-        rp = (const ResultadoPiloto*)obtenerElementoVector(
-                 (tVector*)&c->resultados, i);
-
-        if (fwrite(rp, sizeof(ResultadoPiloto), 1, fCarrera) != 1)
-            return ERR_ARCH;
-    }
+    /* Datos dinamicos: cant_resultados structs Resultado */
+    if (fwrite(c->resultados.vec, sizeof(Resultado), c->cant_resultados, f)
+            != (size_t)c->cant_resultados)
+        return ERR_ARCH;
 
     return TODO_OK;
 }
 
-int leerCarrera(FILE* fCarrera, Carrera* c)
+/*
+ * leerCarrera
+ * Lee primero la cabecera fija, luego reserva memoria y lee los Resultado.
+ * Retorna ERR_ARCH en EOF o error, SIN_MEM si falla malloc.
+ * El llamador es responsable de llamar destruirCarrera() cuando termine.
+ */
+int leerCarrera(FILE* f, Carrera* c)
 {
-    int             i;
-    ResultadoPiloto rp;
+    size_t tamCabecera = sizeof(Carrera) - sizeof(tVector);
 
-    c->resultados.ce = 0;
+    if (fread(c, tamCabecera, 1, f) != 1)
+        return ERR_ARCH;   /* EOF o error de lectura */
 
-    if (fread(&c->info, sizeof(CarreraHeader), 1, fCarrera) != 1)
-        return ERR_ARCH;
+    /* Reservar vector con exactamente cant_resultados elementos */
+    if (crearVector(&c->resultados, sizeof(Resultado), c->cant_resultados) != TODO_OK)
+        return SIN_MEM;
 
-    for (i = 0; i < c->info.cant_resultados; i++)
+    if (fread(c->resultados.vec, sizeof(Resultado), c->cant_resultados, f)
+            != (size_t)c->cant_resultados)
     {
-        if (fread(&rp, sizeof(ResultadoPiloto), 1, fCarrera) != 1)
-            return ERR_ARCH;
-
-        memcpy((char*)c->resultados.vec + (c->resultados.ce * sizeof(ResultadoPiloto)),
-               &rp, sizeof(ResultadoPiloto));
-        c->resultados.ce++;
+        destruirVector(&c->resultados);
+        return ERR_ARCH;
     }
 
+    c->resultados.ce = c->cant_resultados;
     return TODO_OK;
 }
 
 /* =========================================================
-                        Helpers internos
+   Funciones auxiliares internas
    ========================================================= */
 
 /*
- * pedirDatosBase
- * Solicita circuito y fecha. Reintenta la fecha hasta que sea valida.
- * Usa leerCadena para el string y scanf para el numero.
+ * generarIdCarrera
+ * Recorre el archivo contando registros y retorna el proximo ID.
+ * El FILE* debe estar abierto en modo lectura binaria.
  */
-static void pedirDatosBase(Carrera* c)
+int generarIdCarrera(FILE* fCarrera)
 {
-    printf("\nNombre del circuito: ");
-    leerCadena(c->info.circuito, TAM_NOMBRE_CIRCUITO);
+    Carrera c;
+    int     id = 1;
 
-    do
+    rewind(fCarrera);
+
+    while (leerCarrera(fCarrera, &c) == TODO_OK)
     {
-        printf("Fecha de la carrera (AAAAMMDD): ");
-        scanf("%llu", &c->info.fecha);
-        limpiarBuffer();
-
-        if (!esFechaValida(c->info.fecha))
-            printf("[!] Fecha invalida. Use formato AAAAMMDD.\n");
-
-    }
-    while (!esFechaValida(c->info.fecha));
-}
-
-/*
- * pedirEstadoResultado
- * Solicita el estado (1-4) con reintento hasta valor valido.
- * Se justifica como funcion porque el rango debe validarse.
- */
-static int pedirEstadoResultado(void)
-{
-    int estado;
-
-    do
-    {
-        printf("Estado [1=FIN 2=DNF 3=DNS 4=DSQ]: ");
-        scanf("%d", &estado);
-        limpiarBuffer();
-
-        if (estado < RES_FIN || estado > RES_DSQ)
-            printf("[!] Estado invalido. Ingrese un valor entre 1 y 4.\n");
-
-    }
-    while (estado < RES_FIN || estado > RES_DSQ);
-
-    return estado;
-}
-
-
-/*
- * esPilotoDuplicado
- * Retorna 1 si idPiloto ya esta registrado en la carrera.
- */
-static int esPilotoDuplicado(const Carrera* c, unsigned idPiloto)
-{
-    size_t           k;
-    ResultadoPiloto* rp;
-    int              encontrado;
-
-    encontrado = 0;
-    k          = 0;
-
-    while (k < c->resultados.ce && !encontrado)
-    {
-        rp         = (ResultadoPiloto*)obtenerElementoVector((tVector*)&c->resultados, k);
-        encontrado = (rp->id_piloto == idPiloto);
-        k++;
+        id++;
+        destruirCarrera(&c);
     }
 
-    return encontrado;
-}
-
-/*
- * acumularPuntosDesdeCarrera
- * Suma los puntos de todos los resultados de una carrera
- * en el vector de pilotos. Factorizado para evitar duplicacion
- * entre recalcularPuntosPilotos y actualizarPuntosUltimaCarrera.
- */
-static void acumularPuntosDesdeCarrera(tVector* vPilotos, const Carrera* c)
-{
-    size_t           i;
-    ResultadoPiloto* rp;
-    Piloto*          piloto;
-
-    for (i = 0; i < (size_t)c->info.cant_resultados; i++)
-    {
-        rp     = (ResultadoPiloto*)obtenerElementoVector((tVector*)&c->resultados, i);
-        piloto = (Piloto*)busquedaBinariaVector(vPilotos, &rp->id_piloto, compararUnsigned);
-
-        if (piloto && rp->puntos > 0)
-            piloto->puntos_acumulados += (unsigned)rp->puntos;
-    }
-}
-
-/*
- * estadoResultadoATexto
- * Convierte el entero de estado a su cadena para mostrar.
- */
-static const char* estadoResultadoATexto(int estado)
-{
-    switch (estado)
-    {
-    case RES_FIN:
-        return "FIN";
-    case RES_DNF:
-        return "DNF";
-    case RES_DNS:
-        return "DNS";
-    case RES_DSQ:
-        return "DSQ";
-    default:
-        return "???";
-    }
+    return id;
 }
 
 /* =========================================================
-   Alta de carrera
+   Mostrar
    ========================================================= */
 
-int registrarCarreraAleatoria(const char*         rutaCarrera,
-                              const char*         rutaPiloto,
-                              Comparar            comparar,
-                              const Puntos* vPuntos)
+/*
+ * mostrarCarrera  [Mostrar]
+ * Imprime encabezado de la carrera y la tabla de resultados.
+ * Recibe const void* para ser compatible con mostrarVector/mostrarArchivoBinario.
+ * ATENCION: como mostrarArchivoBinario usa fread directo, no puede usarse
+ * para Carrera. Ver el loop en menuCarrera() en main.c.
+ */
+void mostrarCarrera(const void* dato)
 {
-    Carrera nueva;
-    FILE*   fCarrera;
-    int     resp;
+    const Carrera* c = (const Carrera*)dato;
+    Resultado*     r;
+    int            i;
 
-    if (inicializarCarrera(&nueva, MAX_PILOTOS_CARRERA))
-        return SIN_MEM;
+    printf("\n");
+    printf("  +------------------------------------------+\n");
+    printf("  |  Carrera #%-3d  %-20s     |\n", c->id, c->circuito);
+    printf("  |  Fecha: %llu   Estado: %s         |\n",
+           c->fecha,
+           c->estado == ESTADO_CARRERA_ACTIVA ? "Activa  " : "Cancelada");
+    printf("  +--------+------------+--------+\n");
+    printf("  | Pos    | ID Piloto  | Puntos |\n");
+    printf("  +--------+------------+--------+\n");
 
-    fCarrera = fopen(rutaCarrera, "ab+");
-    if (!fCarrera)
+    for (i = 0; i < c->cant_resultados; i++)
     {
-        destruirCarrera(&nueva);
-        return ERR_ARCH;
+        r = (Resultado*)obtenerElementoVector((tVector*)&c->resultados, i);
+        printf("  | %-6d | %-10d | %-6d |\n", i + 1, r->id_piloto, r->puntos);
     }
 
-    nueva.info.id     = generarIdCarrera(fCarrera);
-    nueva.info.estado = ESTADO_CARRERA_ACTIVA;
-
-    pedirDatosBase(&nueva);
-
-    /* Mejora #9: avisar si la fecha es anterior a la ultima carrera */
-    {
-        Carrera tmp;
-        Carrera ultima;
-        int     hayUltima = 0;
-
-        if (inicializarCarrera(&tmp,   MAX_PILOTOS_CARRERA) == TODO_OK &&
-            inicializarCarrera(&ultima, MAX_PILOTOS_CARRERA) == TODO_OK)
-        {
-            FILE* fLec = fopen(rutaCarrera, "rb");
-            if (fLec)
-            {
-                while (leerCarrera(fLec, &tmp) == TODO_OK)
-                {
-                    ultima.info             = tmp.info;
-                    ultima.resultados.ce    = tmp.resultados.ce;
-                    memcpy(ultima.resultados.vec, tmp.resultados.vec,
-                           tmp.resultados.ce * sizeof(ResultadoPiloto));
-                    hayUltima = 1;
-                }
-                fclose(fLec);
-            }
-
-            if (hayUltima && nueva.info.fecha < ultima.info.fecha)
-                printf("[!] Advertencia: la fecha ingresada es anterior "
-                       "a la ultima carrera registrada.\n");
-
-            destruirCarrera(&tmp);
-            destruirCarrera(&ultima);
-        }
-    }
-
-    resp = cargarResultadosAleatorios(rutaPiloto, &nueva, comparar, vPuntos);
-
-    if (resp == TODO_OK)
-    {
-        fseek(fCarrera, 0L, SEEK_END);
-        resp = escribirCarrera(fCarrera, &nueva);
-    }
-
-    fclose(fCarrera);
-    destruirCarrera(&nueva);
-
-    return resp;
+    printf("  +--------+------------+--------+\n");
 }
 
-int registrarCarreraManual(const char*         rutaCarrera,
-                           const char*         rutaPiloto,
-                           Comparar            comparar,
-                           const Puntos* vPuntos)
+/* =========================================================
+   Alta de carrera — resultado aleatorio
+   ========================================================= */
+
+/*
+ * cargarResultadosCarreraAleatorios
+ * Carga los IDs de pilotos activos en un vector, los baraja con
+ * Fisher-Yates y asigna puntos F1 segun posicion.
+ */
+int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva,
+                                       Comparar comparar, const Puntos* pts)
 {
-    Carrera         nueva;
-    ResultadoPiloto rp;
-    tVector         vIdsActivos;
-    FILE*           fCarrera;
-    int             resp;
-    int             pos;
-    int             pInput;
-    int             puntosSug;
-    int             hayMas;
-    int             leido;
-    unsigned        idIngresado;
-    int             totalActivos;
+    tVector  vIds;
+    unsigned idPiloto;
+    int      i;
+    int      puntos;
+    Resultado res;
 
-    if (inicializarCarrera(&nueva, MAX_PILOTOS_CARRERA))
-        return SIN_MEM;
-
-    /* Cargar IDs activos para validacion y autocomplete */
-    if (crearVector(&vIdsActivos, sizeof(unsigned), MAX_PILOTOS_CARRERA))
-    {
-        destruirCarrera(&nueva);
-        return SIN_MEM;
-    }
-
-    if (cargarVectorPilotoActivos(rutaPiloto, &vIdsActivos, comparar) != TODO_OK
-        || vIdsActivos.ce == 0)
-    {
-        printf("[!] No hay pilotos activos para registrar la carrera.\n");
-        destruirVector(&vIdsActivos);
-        destruirCarrera(&nueva);
-        return VEC_VACIO;
-    }
-
-    totalActivos = (int)vIdsActivos.ce;
-
-    fCarrera = fopen(rutaCarrera, "ab+");
-    if (!fCarrera)
-    {
-        destruirVector(&vIdsActivos);
-        destruirCarrera(&nueva);
-        return ERR_ARCH;
-    }
-
-    nueva.info.id              = generarIdCarrera(fCarrera);
-    nueva.info.estado          = ESTADO_CARRERA_ACTIVA;
-    nueva.info.cant_resultados = 0;
-
-    pedirDatosBase(&nueva);
-
-    printf("\nTotal de pilotos activos: %d\n", totalActivos);
-    printf("Ingreso de resultados (ID piloto = 0 para terminar;\n");
-    printf("pilotos no ingresados se completaran como DNS)\n");
-    printf("Estados: 1=FIN  2=DNF  3=DNS  4=DSQ\n");
-    printf("DNF/DNS/DSQ asignan 0 puntos automaticamente.\n");
-    printf("--------------------------------------------\n");
-
-    pos    = 1;
-    hayMas = 1;
-
-    while (hayMas && (int)nueva.resultados.ce < totalActivos)
-    {
-        printf("Posicion %2d - ID piloto (0 = fin): ", pos);
-        leido = scanf("%u", &idIngresado);
-
-        if (leido != 1)
-        {
-            limpiarBuffer();
-            printf("[!] Entrada invalida. Ingrese un numero.\n");
-            continue;
-        }
-        limpiarBuffer();
-
-        if (idIngresado == 0)
-        {
-            hayMas = 0;
-        }
-        /* Mejora #2 + #10: verificar que existe Y esta activo */
-        else if (busquedaBinariaVector(&vIdsActivos, &idIngresado, comparar) == NULL)
-        {
-            printf("[!] Piloto ID %u no existe o no esta activo.\n",
-                   idIngresado);
-        }
-        else if (esPilotoDuplicado(&nueva, idIngresado))
-        {
-            printf("[!] Piloto ID %u ya fue registrado en esta carrera.\n",
-                   idIngresado);
-        }
-        else
-        {
-            rp.id_piloto        = idIngresado;
-            rp.estado_resultado = pedirEstadoResultado();
-
-            if (rp.estado_resultado != RES_FIN)
-            {
-                rp.puntos = 0;
-                printf("           Puntos: 0 (estado %s)\n",
-                       estadoResultadoATexto(rp.estado_resultado));
-            }
-            else
-            {
-                /* FIN: sugerir puntos segun posicion de la tabla configurable */
-                puntosSug = puntosParaPosicion(vPuntos, pos);
-
-                printf("           Puntos (sugerido %2d, -1 para aceptar): ",
-                       puntosSug);
-                leido = scanf("%d", &pInput);
-                if (leido != 1)
-                {
-                    limpiarBuffer();
-                    pInput = -1;
-                }
-                else
-                    limpiarBuffer();
-
-                rp.puntos = (pInput < 0) ? puntosSug : pInput;
-            }
-
-            memcpy((char*)nueva.resultados.vec +
-                   (nueva.resultados.ce * sizeof(ResultadoPiloto)),
-                   &rp, sizeof(ResultadoPiloto));
-
-            nueva.resultados.ce++;
-            nueva.info.cant_resultados++;
-            pos++;
-        }
-    }
-
-    /* Autocomplete: pilotos no ingresados -> DNS */
-    if ((int)nueva.resultados.ce < totalActivos)
-    {
-        printf("[i] Completando %d piloto(s) restante(s) como DNS...\n",
-               totalActivos - (int)nueva.resultados.ce);
-        autocompletarResultados(&nueva, &vIdsActivos);
-    }
-
-    /* Ordenar: FIN primero, luego DNF/DNS/DSQ */
-    ordenarResultados(&nueva.resultados);
-
-    fseek(fCarrera, 0L, SEEK_END);
-    resp = escribirCarrera(fCarrera, &nueva);
-    fclose(fCarrera);
-    destruirVector(&vIdsActivos);
-    destruirCarrera(&nueva);
-
-    return resp;
-}
-
-int cargarResultadosAleatorios(const char*         rutaPiloto,
-                               Carrera*            c,
-                               Comparar            comparar,
-                               const Puntos* vPuntos)
-{
-    tVector         vIds;
-    int             i;
-    ResultadoPiloto rp;
-
-    if (crearVector(&vIds, sizeof(unsigned), MAX_PILOTOS_CARRERA))
+    if (crearVector(&vIds, sizeof(unsigned), MAX_PILOTOS_CARRERA) != TODO_OK)
         return SIN_MEM;
 
     if (cargarVectorPilotoActivos(rutaPiloto, &vIds, comparar) != TODO_OK)
@@ -427,517 +177,475 @@ int cargarResultadosAleatorios(const char*         rutaPiloto,
         return ERR_ARCH;
     }
 
-    /* Mejora #1: vector vacio = error descriptivo */
-    if (vIds.ce == 0)
-    {
-        printf("[!] No hay pilotos activos para generar la carrera.\n");
-        destruirVector(&vIds);
-        return VEC_VACIO;
-    }
-
+    /* Barajar con Fisher-Yates para orden aleatorio */
     generarResultadoAleatorioVector(&vIds);
 
-    c->info.cant_resultados = (int)vIds.ce;
+    nueva->cant_resultados = (int)vIds.ce;
 
-    for (i = 0; i < c->info.cant_resultados; i++)
+    if (inicializarCarrera(nueva, nueva->cant_resultados) != TODO_OK)
     {
-        rp.id_piloto        = *(unsigned*)obtenerElementoVector(&vIds, i);
-        rp.estado_resultado = RES_FIN;
-        rp.puntos           = puntosParaPosicion(vPuntos, i + 1);
+        destruirVector(&vIds);
+        return SIN_MEM;
+    }
 
-        memcpy((char*)c->resultados.vec + (i * sizeof(ResultadoPiloto)),
-               &rp, sizeof(ResultadoPiloto));
-        c->resultados.ce++;
+    for (i = 0; i < nueva->cant_resultados; i++)
+    {
+        idPiloto = *(unsigned*)obtenerElementoVector(&vIds, i);
+
+        puntos = obtenerPuntosPorPosicion(pts, i + 1);
+
+        res.id_piloto = (int)idPiloto;
+        res.puntos    = puntos;
+
+        insertarFinalVector(&nueva->resultados, &res);
     }
 
     destruirVector(&vIds);
     return TODO_OK;
 }
 
-
-int generarIdCarrera(FILE* fCarrera)
+/*
+ * registrarCarreraAleatoria
+ * Pide circuito y fecha, genera resultados aleatorios y guarda en .dat.
+ */
+int registrarCarreraAleatoria(const char* rutaCarrera, const char* rutaPiloto,
+                               Comparar comparar, const Puntos* pts)
 {
-    int     ultimoId;
-    Carrera tmp;
+    Carrera nueva;
+    FILE*   fCarrera;
+    int     ret;
 
-    fseek(fCarrera, 0, SEEK_END);
+    /* Inicializar campos fijos — el vector se inicializa en cargarResultados */
+    nueva.resultados.vec = NULL;
+    nueva.cant_resultados = 0;
 
-    if (ftell(fCarrera) < (long)sizeof(CarreraHeader))
-        return 1;
+    fCarrera = fopen(rutaCarrera, "ab+");
+    if (!fCarrera)
+        return ERR_ARCH;
 
-    ultimoId = 1;
-    fseek(fCarrera, 0, SEEK_SET);
+    nueva.id     = generarIdCarrera(fCarrera);
+    nueva.estado = ESTADO_CARRERA_ACTIVA;
 
-    if (inicializarCarrera(&tmp, MAX_PILOTOS_CARRERA) == TODO_OK)
+    limpiarBuffer();
+    printf("Circuito: ");
+    leerCadena(nueva.circuito, TAM_NOMBRE_CIRCUITO);
+
+    do
     {
-        while (leerCarrera(fCarrera, &tmp) == TODO_OK)
-            ultimoId = tmp.info.id;
+        printf("Fecha (AAAAMMDD): ");
+        scanf("%llu", &nueva.fecha);
+    }
+    while (!esFechaValida(nueva.fecha));
 
-        destruirCarrera(&tmp);
+    ret = cargarResultadosCarreraAleatorios(rutaPiloto, &nueva, comparar, pts);
+
+    if (ret == TODO_OK)
+    {
+        fseek(fCarrera, 0, SEEK_END);
+        escribirCarrera(fCarrera, &nueva);
+        printf("[OK] Carrera #%d en %s registrada con %d pilotos.\n",
+               nueva.id, nueva.circuito, nueva.cant_resultados);
     }
 
-    return ultimoId + 1;
+    destruirCarrera(&nueva);
+    fclose(fCarrera);
+    return ret;
 }
 
 /* =========================================================
-   Actualizacion de puntos en piloto.bin
-   ========================================================= */
-
-int recalcularPuntosPilotos(const char* rutaCarrera,
-                            const char* rutaPiloto,
-                            Filter      filtrar,
-                            Reduce      reducir)
-{
-    tVector  vPilotos;
-    Carrera  c;
-    FILE*    fCarrera;
-    size_t   i;
-    Piloto*  p;
-
-    (void)reducir;
-
-    if (crearVector(&vPilotos, sizeof(Piloto), MAX_PILOTOS_CARRERA))
-        return SIN_MEM;
-
-    if (cargarVectorDesdeBin(rutaPiloto, &vPilotos))
-    {
-        destruirVector(&vPilotos);
-        return ERR_ARCH;
-    }
-
-    /* Resetear puntos de todos los pilotos */
-    for (i = 0; i < vPilotos.ce; i++)
-    {
-        p = (Piloto*)obtenerElementoVector(&vPilotos, i);
-        p->puntos_acumulados = 0;
-    }
-
-    if (inicializarCarrera(&c, MAX_PILOTOS_CARRERA))
-    {
-        destruirVector(&vPilotos);
-        return SIN_MEM;
-    }
-
-    fCarrera = fopen(rutaCarrera, "rb");
-    if (!fCarrera)
-    {
-        destruirCarrera(&c);
-        destruirVector(&vPilotos);
-        return ERR_ARCH;
-    }
-
-    while (leerCarrera(fCarrera, &c) == TODO_OK)
-    {
-        if (filtrar(&c.info))
-            acumularPuntosDesdeCarrera(&vPilotos, &c);
-    }
-
-    fclose(fCarrera);
-    guardarVectorEnBin(rutaPiloto, &vPilotos);
-    destruirCarrera(&c);
-    destruirVector(&vPilotos);
-
-    return TODO_OK;
-}
-
-int actualizarPuntosUltimaCarrera(const char* rutaCarrera,
-                                  const char* rutaPiloto,
-                                  Filter      filtrar,
-                                  Reduce      reducir)
-{
-    tVector       vPilotos;
-    Carrera       actual;
-    Carrera       ultima;
-    FILE*         fCarrera;
-    int           hayUltima;
-    CarreraHeader tmpH;
-    tVector       tmpV;
-
-    (void)reducir;
-
-    if (crearVector(&vPilotos, sizeof(Piloto), MAX_PILOTOS_CARRERA))
-        return SIN_MEM;
-
-    if (cargarVectorDesdeBin(rutaPiloto, &vPilotos))
-    {
-        destruirVector(&vPilotos);
-        return ERR_ARCH;
-    }
-
-    if (inicializarCarrera(&actual, MAX_PILOTOS_CARRERA) ||
-            inicializarCarrera(&ultima, MAX_PILOTOS_CARRERA))
-    {
-        destruirVector(&vPilotos);
-        return SIN_MEM;
-    }
-
-    fCarrera = fopen(rutaCarrera, "rb");
-    if (!fCarrera)
-    {
-        destruirCarrera(&actual);
-        destruirCarrera(&ultima);
-        destruirVector(&vPilotos);
-        return ERR_ARCH;
-    }
-
-    hayUltima = 0;
-
-    while (leerCarrera(fCarrera, &actual) == TODO_OK)
-    {
-        tmpH              = ultima.info;
-        tmpV              = ultima.resultados;
-        ultima.info       = actual.info;
-        ultima.resultados = actual.resultados;
-        actual.info       = tmpH;
-        actual.resultados = tmpV;
-        hayUltima         = 1;
-    }
-
-    fclose(fCarrera);
-    destruirCarrera(&actual);
-
-    if (hayUltima && filtrar(&ultima.info))
-        acumularPuntosDesdeCarrera(&vPilotos, &ultima);
-
-    guardarVectorEnBin(rutaPiloto, &vPilotos);
-    destruirCarrera(&ultima);
-    destruirVector(&vPilotos);
-
-    return TODO_OK;
-}
-/* =========================================================
-   ABM directo sobre carrera.bin
+   Alta de carrera — ingreso manual
    ========================================================= */
 
 /*
- * buscarCarreraHeaderEnBin
- * El archivo tiene registros de tamanio VARIABLE:
- *   [ CarreraHeader ][ N x ResultadoPiloto ]
- * Por eso no se puede calcular el offset directamente.
- * Se recorre secuencialmente hasta encontrar el id buscado.
- * Retorna el offset donde empieza el CarreraHeader, o -1L.
+ * registrarCarreraManual
+ * El usuario ingresa posicion por posicion el ID de piloto.
+ * Los puntos se asignan automaticamente segun la tabla F1.
  */
-long buscarCarreraHeaderEnBin(const char* rutaBin, int idBuscado,
-                               CarreraHeader* dest)
+int registrarCarreraManual(const char* rutaCarrera, const char* rutaPiloto,
+                            Comparar comparar, const Puntos* pts)
 {
-    CarreraHeader h;
-    long          offset;
-    long          saltoPilotos;
-    FILE*         fBin;
+    Carrera  nueva;
+    tVector  vIds;
+    FILE*    fCarrera;
+    unsigned idIngresado;
+    int      cantPilotos;
+    int      i;
+    int      puntos;
+    Resultado res;
+
+    nueva.resultados.vec  = NULL;
+    nueva.cant_resultados = 0;
+
+    fCarrera = fopen(rutaCarrera, "ab+");
+    if (!fCarrera)
+        return ERR_ARCH;
+
+    nueva.id     = generarIdCarrera(fCarrera);
+    nueva.estado = ESTADO_CARRERA_ACTIVA;
+
+    limpiarBuffer();
+    printf("Circuito: ");
+    leerCadena(nueva.circuito, TAM_NOMBRE_CIRCUITO);
+
+    do
+    {
+        printf("Fecha (AAAAMMDD): ");
+        scanf("%llu", &nueva.fecha);
+    }
+    while (!esFechaValida(nueva.fecha));
+
+    /* Cargar IDs validos para validar el ingreso */
+    if (crearVector(&vIds, sizeof(unsigned), MAX_PILOTOS_CARRERA) != TODO_OK)
+    {
+        fclose(fCarrera);
+        return SIN_MEM;
+    }
+    cargarVectorPilotoActivos(rutaPiloto, &vIds, comparar);
+
+    do
+    {
+        printf("Cantidad de pilotos que terminaron la carrera (max %d): ", MAX_PILOTOS_CARRERA);
+        scanf("%d", &cantPilotos);
+    }
+    while (cantPilotos < 1 || cantPilotos > MAX_PILOTOS_CARRERA);
+
+    if (inicializarCarrera(&nueva, cantPilotos) != TODO_OK)
+    {
+        destruirVector(&vIds);
+        fclose(fCarrera);
+        return SIN_MEM;
+    }
+
+    for (i = 0; i < cantPilotos; i++)
+    {
+        do
+        {
+            printf("Posicion %d — ID piloto: ", i + 1);
+            scanf("%u", &idIngresado);
+        }
+        while (!busquedaBinariaVector(&vIds, &idIngresado, comparar));
+
+        puntos = obtenerPuntosPorPosicion(pts, i + 1);
+
+        res.id_piloto = (int)idIngresado;
+        res.puntos    = puntos;
+
+        insertarFinalVector(&nueva.resultados, &res);
+        nueva.cant_resultados++;
+    }
+
+    fseek(fCarrera, 0, SEEK_END);
+    escribirCarrera(fCarrera, &nueva);
+
+    printf("[OK] Carrera #%d en %s registrada con %d pilotos.\n",
+           nueva.id, nueva.circuito, nueva.cant_resultados);
+
+    destruirCarrera(&nueva);
+    destruirVector(&vIds);
+    fclose(fCarrera);
+    return TODO_OK;
+}
+
+/* =========================================================
+   Recalcular puntos de pilotos
+   ========================================================= */
+
+/*
+ * recalcularPuntosPilotos
+ * Carga todos los pilotos en un vector, resetea sus puntos a 0,
+ * recorre carrera.dat acumulando puntos por piloto y guarda el vector.
+ */
+int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto)
+{
+    tVector   vPilotos;
+    Carrera   carrera;
+    Piloto*   pPiloto;
+    Resultado* r;
+    FILE*     fCarrera;
+    unsigned  id;
+    int       i;
+
+    if (crearVector(&vPilotos, sizeof(Piloto), CAP_MAX) != TODO_OK)
+        return SIN_MEM;
+
+    if (cargarVectorDesdeBin(rutaPiloto, &vPilotos) != TODO_OK)
+    {
+        destruirVector(&vPilotos);
+        return ERR_ARCH;
+    }
+
+    /* Resetear puntos */
+    for (i = 0; i < (int)vPilotos.ce; i++)
+    {
+        pPiloto = (Piloto*)obtenerElementoVector(&vPilotos, i);
+        pPiloto->puntos_acumulados = 0;
+    }
+
+    fCarrera = fopen(rutaCarrera, "rb");
+    if (!fCarrera)
+    {
+        destruirVector(&vPilotos);
+        return ERR_ARCH;
+    }
+
+    while (leerCarrera(fCarrera, &carrera) == TODO_OK)
+    {
+        if (carrera.estado == ESTADO_CARRERA_ACTIVA)
+        {
+            for (i = 0; i < carrera.cant_resultados; i++)
+            {
+                r  = (Resultado*)obtenerElementoVector(&carrera.resultados, i);
+                id = (unsigned)r->id_piloto;
+
+                pPiloto = (Piloto*)busquedaBinariaVector(&vPilotos, &id, compararUnsigned);
+                if (pPiloto)
+                    pPiloto->puntos_acumulados += (unsigned)r->puntos;
+            }
+        }
+        destruirCarrera(&carrera);
+    }
+
+    fclose(fCarrera);
+
+    guardarVectorEnBin(rutaPiloto, &vPilotos);
+    destruirVector(&vPilotos);
+
+    return TODO_OK;
+}
+
+/* =========================================================
+   Exportar carreras a texto
+   ========================================================= */
+
+/*
+ * exportarCarrerasTxt
+ * Formato: id,circuito,fecha,estado,cant_resultados,idPiloto:puntos-...
+ */
+int exportarCarrerasTxt(const char* rutaBin, const char* rutaTxtExportado)
+{
+    FILE*      fBin;
+    FILE*      fTxt;
+    Carrera    c;
+    Resultado* r;
+    int        i;
+    int        exportadas = 0;
 
     fBin = fopen(rutaBin, "rb");
     if (!fBin)
-        return -1L;
-
-    while (1)
     {
-        offset = ftell(fBin);
+        printf("[!] No se encontro el archivo de carreras.\n");
+        return ERR_ARCH;
+    }
 
-        if (fread(&h, sizeof(CarreraHeader), 1, fBin) != 1)
-            break;
+    fTxt = fopen(rutaTxtExportado, "wt");
+    if (!fTxt)
+    {
+        fclose(fBin);
+        return ERR_ARCH;
+    }
 
-        if (h.id == idBuscado)
+    while (leerCarrera(fBin, &c) == TODO_OK)
+    {
+        fprintf(fTxt, "%d,%s,%llu,%d,%d",
+                c.id, c.circuito, c.fecha, c.estado, c.cant_resultados);
+
+        for (i = 0; i < c.cant_resultados; i++)
         {
-            if (dest)
-                *dest = h;
-            fclose(fBin);
-            return offset;
+            r = (Resultado*)obtenerElementoVector(&c.resultados, i);
+            fprintf(fTxt, "%c%d:%d",
+                    (i == 0 ? ',' : '-'), r->id_piloto, r->puntos);
         }
 
-        /* Saltar los resultados de esta carrera */
-        saltoPilotos = (long)(h.cant_resultados * sizeof(ResultadoPiloto));
-        fseek(fBin, saltoPilotos, SEEK_CUR);
+        fprintf(fTxt, "\n");
+        exportadas++;
+        destruirCarrera(&c);
     }
 
     fclose(fBin);
-    return -1L;
+    fclose(fTxt);
+
+    printf("[OK] Se exportaron %d carreras.\n", exportadas);
+    return TODO_OK;
 }
 
+/* =========================================================
+   ABM — Baja logica y modificacion
+   ========================================================= */
+
 /*
- * darBajaCarrera
- * Pone estado = ESTADO_CARRERA_INACTIVA en el header.
- * Los ResultadoPiloto NO se tocan.
- * Tras la baja, recalcula puntos para que los de esa carrera
- * dejen de contabilizarse en la temporada.
+ * bajaCarrera
+ * Busca la carrera por ID, la marca como inactiva y la reescribe.
+ * Registra la baja en el archivo de texto de bajas.
+ * ATENCION: como el formato es variable (cant_resultados puede variar),
+ * se reescribe el archivo completo con la carrera modificada.
  */
-int darBajaCarrera(const char* rutaBin,
-                   const char* rutaPiloto,
-                   int         idCarrera)
+int bajaCarrera(const char* rutaBin, const char* rutaBajasTxt)
 {
-    CarreraHeader h;
-    long          offset;
-    FILE*         fBin;
+    FILE*    fBin;
+    FILE*    fTmp;
+    FILE*    fBajas;
+    Carrera  c;
+    int      idBaja;
+    int      encontrado = 0;
 
-    offset = buscarCarreraHeaderEnBin(rutaBin, idCarrera, &h);
-    if (offset < 0)
-    {
-        printf("[!] Carrera ID %d no encontrada.\n", idCarrera);
-        return NO_ENCONTRADO;
-    }
+    printf("\n--- BAJA DE CARRERA ---\n");
+    printf("ID de la carrera: ");
+    scanf("%d", &idBaja);
 
-    if (h.estado == ESTADO_CARRERA_INACTIVA)
-    {
-        printf("[!] La carrera '%s' (ID %d) ya esta inactiva.\n",
-               h.circuito, h.id);
-        return ERR_LINEA;
-    }
-
-    h.estado = ESTADO_CARRERA_INACTIVA;
-
-    fBin = fopen(rutaBin, "r+b");
+    fBin = fopen(rutaBin, "rb");
     if (!fBin)
         return ERR_ARCH;
 
-    fseek(fBin, offset, SEEK_SET);
-    fwrite(&h, sizeof(CarreraHeader), 1, fBin);
+    fTmp = fopen("archivos/tmp_carreras.dat", "wb");
+    if (!fTmp)
+    {
+        fclose(fBin);
+        return ERR_ARCH;
+    }
+
+    while (leerCarrera(fBin, &c) == TODO_OK)
+    {
+        if (c.id == idBaja)
+        {
+            encontrado    = 1;
+            c.estado      = ESTADO_CARRERA_INACTIVA;
+        }
+        escribirCarrera(fTmp, &c);
+        destruirCarrera(&c);
+    }
+
     fclose(fBin);
+    fclose(fTmp);
 
-    printf("[OK] Carrera '%s' (ID %d) dada de baja.\n", h.circuito, h.id);
+    if (!encontrado)
+    {
+        remove("archivos/tmp_carreras.dat");
+        printf("[!] Carrera con ID %d no encontrada.\n", idBaja);
+        return NO_ENCONTRADO;
+    }
 
-    /* Recalcular puntos: los de esta carrera ya no cuentan */
-    printf("[..] Recalculando puntos de la temporada...\n");
-    recalcularPuntosPilotos(rutaBin, rutaPiloto,
-                            filterEsCarreraActiva,
-                            reduceAcumularPuntosCarrera);
-    printf("[OK] Puntos actualizados.\n");
+    remove(rutaBin);
+    rename("archivos/tmp_carreras.dat", rutaBin);
 
+    fBajas = fopen(rutaBajasTxt, "at");
+    if (fBajas)
+    {
+        fprintf(fBajas, "CARRERA|%d|INACTIVA\n", idBaja);
+        fclose(fBajas);
+    }
+
+    printf("[OK] Carrera ID %d dada de baja.\n", idBaja);
     return TODO_OK;
 }
 
 /*
  * modificarCarrera
- * Permite editar circuito y/o fecha del header.
- * Solo sobreescribe el CarreraHeader en su offset.
- * Los ResultadoPiloto quedan intactos.
+ * Permite cambiar circuito o fecha de una carrera existente.
+ * Reescribe el archivo completo con la carrera modificada.
  */
-int modificarCarrera(const char* rutaBin, int idCarrera)
+int modificarCarrera(const char* rutaBin)
 {
-    CarreraHeader      h;
-    long               offset;
-    FILE*              fBin;
-    int                opcion;
-    int                continuar;
-    unsigned long long fechaNueva;
+    FILE*   fBin;
+    FILE*   fTmp;
+    Carrera c;
+    int     idMod;
+    int     encontrado = 0;
+    int     campo;
 
-    offset = buscarCarreraHeaderEnBin(rutaBin, idCarrera, &h);
-    if (offset < 0)
-    {
-        printf("[!] Carrera ID %d no encontrada.\n", idCarrera);
-        return NO_ENCONTRADO;
-    }
+    printf("\n--- MODIFICAR CARRERA ---\n");
+    printf("ID de la carrera: ");
+    scanf("%d", &idMod);
 
-    continuar = 1;
-
-    while (continuar)
-    {
-        printf("\n--- Modificar Carrera ID %d ---\n", h.id);
-        printf("  1. Circuito  [%s]\n",  h.circuito);
-        printf("  2. Fecha     [%llu]\n", h.fecha);
-        printf("  0. Confirmar y guardar\n");
-        printf("Campo a modificar: ");
-        scanf("%d", &opcion);
-        limpiarBuffer();
-
-        switch (opcion)
-        {
-        case 1:
-            printf("Nuevo circuito: ");
-            leerCadena(h.circuito, TAM_NOMBRE_CIRCUITO);
-            break;
-
-        case 2:
-            do
-            {
-                printf("Nueva fecha (AAAAMMDD): ");
-                scanf("%llu", &fechaNueva);
-                limpiarBuffer();
-                if (!esFechaValida(fechaNueva))
-                    printf("[!] Fecha invalida.\n");
-            }
-            while (!esFechaValida(fechaNueva));
-            h.fecha = fechaNueva;
-            break;
-
-        case 0:
-            continuar = 0;
-            break;
-
-        default:
-            printf("[!] Opcion invalida.\n");
-            break;
-        }
-    }
-
-    fBin = fopen(rutaBin, "r+b");
+    fBin = fopen(rutaBin, "rb");
     if (!fBin)
         return ERR_ARCH;
 
-    fseek(fBin, offset, SEEK_SET);
-    fwrite(&h, sizeof(CarreraHeader), 1, fBin);
-    fclose(fBin);
-
-    printf("[OK] Carrera ID %d modificada correctamente.\n", h.id);
-    return TODO_OK;
-}
-
-/*
- * ordenarResultados
- * Ordena el vector de resultados: primero los RES_FIN (en orden
- * de ingreso = orden de llegada), luego los demas (DNF/DNS/DSQ).
- * Usa insertion sort estable para mantener el orden relativo.
- */
-void ordenarResultados(tVector* vRes)
-{
-    size_t           i, j;
-    ResultadoPiloto  tmp;
-    ResultadoPiloto* actual;
-    ResultadoPiloto* anterior;
-
-    for (i = 1; i < vRes->ce; i++)
+    fTmp = fopen("archivos/tmp_carreras.dat", "wb");
+    if (!fTmp)
     {
-        actual = (ResultadoPiloto*)obtenerElementoVector(vRes, i);
+        fclose(fBin);
+        return ERR_ARCH;
+    }
 
-        if (actual->estado_resultado == RES_FIN)
+    while (leerCarrera(fBin, &c) == TODO_OK)
+    {
+        if (c.id == idMod)
         {
-            j = i;
-            while (j > 0)
+            encontrado = 1;
+
+            printf("  [1] Circuito : %s\n", c.circuito);
+            printf("  [2] Fecha    : %llu\n", c.fecha);
+            printf("  [0] Salir\n");
+            printf("Campo a modificar: ");
+            scanf("%d", &campo);
+
+            while (campo != 0)
             {
-                anterior = (ResultadoPiloto*)obtenerElementoVector(vRes, j - 1);
-                if (anterior->estado_resultado != RES_FIN)
+                limpiarBuffer();
+                switch (campo)
                 {
-                    memcpy(&tmp,    anterior, sizeof(ResultadoPiloto));
-                    memcpy(anterior,
-                           obtenerElementoVector(vRes, j),
-                           sizeof(ResultadoPiloto));
-                    memcpy(obtenerElementoVector(vRes, j), &tmp,
-                           sizeof(ResultadoPiloto));
-                    j--;
-                }
-                else
+                case 1:
+                    printf("Nuevo circuito: ");
+                    leerCadena(c.circuito, TAM_NOMBRE_CIRCUITO);
                     break;
+                case 2:
+                    do
+                    {
+                        printf("Nueva fecha (AAAAMMDD): ");
+                        scanf("%llu", &c.fecha);
+                    }
+                    while (!esFechaValida(c.fecha));
+                    break;
+                default:
+                    printf("[!] Campo invalido.\n");
+                    break;
+                }
+                printf("  [1] Circuito : %s\n", c.circuito);
+                printf("  [2] Fecha    : %llu\n", c.fecha);
+                printf("  [0] Salir\n");
+                printf("Campo a modificar: ");
+                scanf("%d", &campo);
             }
         }
+        escribirCarrera(fTmp, &c);
+        destruirCarrera(&c);
     }
-}
 
-/*
- * autocompletarResultados
- * Agrega como DNS (0 puntos) todos los pilotos del vector vIdsActivos
- * que no hayan sido ingresados todavia en la carrera.
- */
-void autocompletarResultados(Carrera* c, const tVector* vIdsActivos)
-{
-    size_t           k;
-    unsigned         idActivo;
-    ResultadoPiloto  rp;
+    fclose(fBin);
+    fclose(fTmp);
 
-    for (k = 0; k < vIdsActivos->ce; k++)
+    if (!encontrado)
     {
-        idActivo = *(unsigned*)obtenerElementoVector((tVector*)vIdsActivos, k);
-
-        if (!esPilotoDuplicado(c, idActivo))
-        {
-            if (c->resultados.ce >= c->resultados.tope)
-                break;
-
-            rp.id_piloto        = idActivo;
-            rp.estado_resultado = RES_DNS;
-            rp.puntos           = 0;
-
-            memcpy((char*)c->resultados.vec +
-                   (c->resultados.ce * sizeof(ResultadoPiloto)),
-                   &rp, sizeof(ResultadoPiloto));
-
-            c->resultados.ce++;
-            c->info.cant_resultados++;
-        }
+        remove("archivos/tmp_carreras.dat");
+        printf("[!] Carrera con ID %d no encontrada.\n", idMod);
+        return NO_ENCONTRADO;
     }
+
+    remove(rutaBin);
+    rename("archivos/tmp_carreras.dat", rutaBin);
+
+    printf("[OK] Carrera ID %d modificada.\n", idMod);
+    return TODO_OK;
 }
 
-/* =========================================================
-   Punteros a funcion del TDA Carrera
-   ========================================================= */
-
-void mostrarCarrera(const void* dato)
+int  mostrarTodasLasCarreras(const char* rutaBin)
 {
-    const CarreraHeader* h    = (const CarreraHeader*)dato;
-    unsigned             dia  = (unsigned)(h->fecha % 100);
-    unsigned             mes  = (unsigned)(h->fecha / 100 % 100);
-    unsigned             anio = (unsigned)(h->fecha / 10000);
-
-    printf("----------------------------------\n");
-    printf("ID Carrera  : %d\n",              h->id);
-    printf("Circuito    : %s\n",              h->circuito);
-    printf("Fecha       : %02u/%02u/%04u\n",  dia, mes, anio);
-    printf("Estado      : %s\n",              h->estado == ESTADO_CARRERA_ACTIVA
-           ? "Activa" : "Cancelada");
-    printf("Resultados  : %d pilotos\n",      h->cant_resultados);
-}
-
-void mostrarCarreraCompleta(const Carrera* c)
-{
-    int                    i;
-    const ResultadoPiloto* rp;
-    unsigned               dia  = (unsigned)(c->info.fecha % 100);
-    unsigned               mes  = (unsigned)(c->info.fecha / 100 % 100);
-    unsigned               anio = (unsigned)(c->info.fecha / 10000);
-
-    printf("==================================\n");
-    printf("ID Carrera  : %d\n",              c->info.id);
-    printf("Circuito    : %s\n",              c->info.circuito);
-    printf("Fecha       : %02u/%02u/%04u\n",  dia, mes, anio);
-    printf("Estado      : %s\n",              c->info.estado == ESTADO_CARRERA_ACTIVA
-           ? "Activa" : "Cancelada");
-    printf("Resultados  : %d pilotos\n",      c->info.cant_resultados);
-    printf("----------------------------------\n");
-
-    for (i = 0; i < (int)c->resultados.ce; i++)
-    {
-        rp = (const ResultadoPiloto*)obtenerElementoVector((tVector*)&c->resultados, i);
-
-        printf("  Pos %2d | Piloto ID: %3u | Pts: %2d | %s\n",
-               i + 1,
-               rp->id_piloto,
-               rp->puntos,
-               estadoResultadoATexto(rp->estado_resultado));
-    }
-}
-
-int listarTodasLasCarreras(const char* rutaCarrera)
-{
+    FILE*   f;
     Carrera c;
-    FILE*   fCarrera;
 
-    fCarrera = fopen(rutaCarrera, "rb");
-    if (!fCarrera)
-        return ERR_ARCH;
-
-    if (inicializarCarrera(&c, MAX_PILOTOS_CARRERA))
+    f = fopen(rutaBin, "rb");
+    if (!f)
     {
-        fclose(fCarrera);
-        return SIN_MEM;
+        printf("[!] No hay carreras registradas.\n");
+        return ERR_ARCH;
     }
 
-    while (leerCarrera(fCarrera, &c) == TODO_OK)
-        mostrarCarreraCompleta(&c);
+    while (leerCarrera(f, &c) == TODO_OK)
+    {
+        mostrarCarrera(&c);
+        destruirCarrera(&c);
+    }
 
-    destruirCarrera(&c);
-    fclose(fCarrera);
-
+    fclose(f);
     return TODO_OK;
 }
-
-int filterEsCarreraActiva(const void* dato)
-{
-    return (((const CarreraHeader*)dato)->estado == ESTADO_CARRERA_ACTIVA);
-}
-
-int reduceAcumularPuntosCarrera(void* acumulador, const void* dato)
-{
-    (void)acumulador;
-    (void)dato;
-    return TODO_OK;
-}
-
-
-

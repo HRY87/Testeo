@@ -2,73 +2,119 @@
 #include "puntos.h"
 #include "utilidades.h"
 
+#define CANT_DEFAULT        11
+#define CAP_INICIAL_PUNTOS  32   /* capacidad inicial del vector, puede crecer */
+
+static const int puntos_f1_default[CANT_DEFAULT] = {0, 25, 18, 15, 12, 10, 8, 6, 4, 2, 1};
+
 /* =========================================================
-                Tabla de puntos configurable
+   Genera puntos.txt con los valores F1 por defecto.
    ========================================================= */
-
-/* Tabla estandar F1: top 10 */
-static const int puntos_f1_default[10] = {25, 18, 15, 12, 10, 8, 6, 4, 2, 1};
-
-void inicializarPuntosDefault(Puntos* vPuntos)
+int generarArchivoPuntosTxt(const char* ruta)
 {
-    int i;
+    FILE* f;
+    int   i;
 
-    vPuntos->posiciones = 10;
-    for (i = 0; i < vPuntos->posiciones; i++)
-        vPuntos->tabla[i] = puntos_f1_default[i];
-
-    /* Rellenar el resto con 0 */
-    for (i = vPuntos->posiciones; i < MAX_POSICIONES_PUNTOS; i++)
-        vPuntos->tabla[i] = 0;
-}
-
-int guardarConfigPuntos(const char* ruta, const Puntos* vPuntos)
-{
-    FILE* f = fopen(ruta, "wb");
+    f = fopen(ruta, "wt");
     if (!f)
         return ERR_ARCH;
 
-    fwrite(vPuntos, sizeof(Puntos), 1, f);
-    fclose(f);
-    return TODO_OK;
-}
-
-int cargarConfigPuntos(const char* ruta, Puntos* vPuntos)
-{
-    FILE* f = fopen(ruta, "rb");
-    if (!f)
-    {
-        /* No existe: usar defaults y persistir para proximas veces */
-        inicializarPuntosDefault(vPuntos);
-        guardarConfigPuntos(ruta, vPuntos);
-        return TODO_OK;
-    }
-
-    if (fread(vPuntos, sizeof(Puntos), 1, f) != 1)
-    {
-        fclose(f);
-        inicializarPuntosDefault(vPuntos);
-        return ERR_ARCH;
-    }
+    for (i = 0; i < CANT_DEFAULT; i++)
+        fprintf(f, "%d\n", puntos_f1_default[i]);
 
     fclose(f);
     return TODO_OK;
 }
 
-int puntosParaPosicion(const Puntos* vPuntos, int posicion)
+/* =========================================================
+   Carga la tabla desde .txt al vector interno.
+   Si el archivo no existe, lo genera con defaults.
+   ========================================================= */
+int cargarConfigPuntos(const char* ruta, Puntos* p)
 {
-    if (!vPuntos || posicion < 1 || posicion > vPuntos->posiciones)
+    FILE* f;
+    int   valor;
+    int   resp;
+
+    resp = crearVector(&p->tabla, sizeof(int), CAP_INICIAL_PUNTOS);
+    if (resp != TODO_OK)
+        return resp;
+
+    f = fopen(ruta, "rt");
+    if (!f)
+    {
+        /* No existe: generar con defaults y cargar desde el arreglo estático */
+        generarArchivoPuntosTxt(ruta);
+
+        f = fopen(ruta, "rt");
+        if (!f)
+        {
+            destruirVector(&p->tabla);
+            return ERR_ARCH;
+        }
+    }
+
+    while (fscanf(f, "%d\n", &valor) == 1)
+    {
+        resp = insertarFinalVector(&p->tabla, &valor);
+
+        if (resp == VEC_LLENO)
+        {
+            /* No debería pasar con CAP_INICIAL_PUNTOS = 32, pero por las dudas */
+            fclose(f);
+            return VEC_LLENO;
+        }
+    }
+
+    fclose(f);
+    return TODO_OK;
+}
+
+/* =========================================================
+   Retorna los puntos para una posición (base 1).
+   tabla[0] = 0 (posición ficticia), tabla[1] = 1er lugar, etc.
+   ========================================================= */
+int obtenerPuntosPorPosicion(const Puntos* p, int posicion)
+{
+    int* elem;
+
+    if (!p || posicion < 1)
         return 0;
-    return vPuntos->tabla[posicion - 1];
+
+    elem = (int*)obtenerElementoVector((tVector*)&p->tabla, (size_t)posicion);
+    if (!elem)
+        return 0;
+
+    return *elem;
 }
 
-void mostrarConfigPuntos(const Puntos* vPuntos)
+/* =========================================================
+   Muestra la tabla por pantalla.
+   ========================================================= */
+void mostrarConfigPuntos(const Puntos* p)
 {
-    int i;
+    int    i;
+    int*   elem;
+    size_t total;
 
-    printf("Tabla de puntos actual (%d posiciones):\n", vPuntos->posiciones);
+    total = p->tabla.ce;
+
+    printf("  Tabla de puntos (%zu posiciones con puntos):\n", total > 0 ? total - 1 : 0);
     printf("  Pos | Pts\n");
     printf("  ----+----\n");
-    for (i = 0; i < vPuntos->posiciones; i++)
-        printf("  %3d | %3d\n", i + 1, vPuntos->tabla[i]);
+
+    for (i = 1; i < (int)total; i++)
+    {
+        elem = (int*)obtenerElementoVector((tVector*)&p->tabla, (size_t)i);
+        if (elem)
+            printf("  %3d | %3d\n", i, *elem);
+    }
+}
+
+/* =========================================================
+   Libera el vector interno.
+   ========================================================= */
+void destruirPuntos(Puntos* p)
+{
+    destruirVector(&p->tabla);
 }

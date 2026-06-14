@@ -6,9 +6,9 @@
 /* =========================================================
    Rutas de archivos del TDA Escuderia
    ========================================================= */
-#define RUTA_ESCUDERIA_BIN  "archivos/escuderia.dat"
-#define RUTA_ESCUDERIA_TXT  "archivos/escuderia.txt"
-
+#define RUTA_ESCUDERIA_BIN  "archivos/escuderias.dat"
+#define RUTA_ESCUDERIA_TXT  "archivos/escuderias.txt"
+#define RUTA_BAJAS_ESCUDERIA  "archivos/bajas_escuderias.txt"
 /* =========================================================
    Estados de la escuderia (campo 'estado')
    ========================================================= */
@@ -42,19 +42,8 @@ typedef struct
 /* Genera el lote inicial de prueba en escuderia.txt */
 int generarArchivoEscuderiasTxt(const char* rutaTxt);
 
-/* =========================================================
-            ABM directo sobre archivo binario
-   ========================================================= */
 
-/* Busca una escuderia por ID.
-   Retorna el offset del registro o -1L si no existe. */
-long buscarEscuderiaEnBin(const char* rutaBin, unsigned idBuscado, Escuderia* dest);
 
-/* Baja logica: pone estado = ESTADO_ESCUDERIA_INACTIVA */
-int darBajaEscuderia(const char* rutaBin, unsigned idEscuderia);
-
-/* Modificacion campo a campo, sobreescribe solo ese registro */
-int modificarEscuderia(const char* rutaBin, unsigned idEscuderia);
 /* =========================================================
    Punteros a funcion del TDA Escuderia
    ========================================================= */
@@ -73,5 +62,12 @@ void mostrarEscuderia(const void* dato);
 
 /* Filter: retorna 1 si la escuderia esta activa */
 int  esEscuderiaActiva(const void* dato);
+
+/* =========================================================
+   ABM
+   ========================================================= */
+int altaEscuderia(const char* rutaBin);
+int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt);
+int modificarEscuderia(const char* rutaBin);
 
 #endif // ESCUDERIA_H_INCLUDED

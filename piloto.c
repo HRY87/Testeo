@@ -1,413 +1,594 @@
-#include <string.h>
-#include "utilidades.h"
+#include <stdio.h>
 #include "piloto.h"
+#include "escuderia.h"
+#include "utilidades.h"
 
-/* =========================================================
-   Lote de prueba inicial (10 pilotos temporada 2026)
-   ========================================================= */
+static void pedirDatosPiloto(Piloto* p);
+static int ingresarEstadoBaja(void);
+static void mostrarCamposPiloto(const Piloto* p);
 
-/**
- * generarArchivoPilotosTxt
- * Crea el archivo piloto.txt con el lote de prueba inicial.
- * Usa generarArchivoTexto() + escribirPilotoTxt() para no
- * duplicar logica de escritura CSV.
- * Retorna TODO_OK o ERR_ARCH.
- */
+static void pedirDatosPiloto(Piloto* p)
+{
+    limpiarBuffer();
+
+    printf("Nombre: ");
+    leerCadena(p->nombre, TAM_NOMBRE_PILOTO);
+
+    printf("Nacionalidad: ");
+    leerCadena(p->nacionalidad, TAM_NACIONALIDAD);
+
+    printf("ID Escuderia: ");
+    scanf("%u", &p->id_escuderia);
+
+    do
+    {
+        printf("Fecha nacimiento (AAAAMMDD): ");
+        scanf("%llu", &p->fechaNacimiento);
+    }
+    while (!esFechaValida(p->fechaNacimiento));
+}
+
+
+static int ingresarEstadoBaja(void)
+{
+    int op;
+
+    printf("  Tipo de baja:\n");
+    printf("  [1] Retirado    (R)\n");
+    printf("  [2] Suspendido  (S)\n");
+    printf("  Opcion: ");
+    scanf("%d", &op);
+
+    if (op == 1)
+        return ESTADO_RETIRADO_PILOTO;
+
+    return ESTADO_SUSPENDIDO_PILOTO;
+}
+
+static void mostrarCamposPiloto(const Piloto* p)
+{
+    printf("\n  Datos actuales del piloto ID %u:\n", p->id);
+    printf("  [1] Nombre          : %s\n",  p->nombre);
+    printf("  [2] Nacionalidad    : %s\n",  p->nacionalidad);
+    printf("  [3] ID Escuderia    : %u\n",  p->id_escuderia);
+    printf("  [4] Fecha nacimiento: %llu\n", p->fechaNacimiento);
+    printf("  [5] Estado          : %c\n", p->estado);
+    printf("  [0] Salir\n");
+}
+
 int generarArchivoPilotosTxt(const char* rutaTxt)
 {
-    Piloto lote[10] = {
+    Piloto lote[11] =
+    {
         {1,  "Max Verstappen",  "Neerlandes",  1, 0, ESTADO_ACTIVO_PILOTO, 19970930},
-        {2,  "Lando Norris",    "Britanico",   2, 0, ESTADO_ACTIVO_PILOTO, 19991113},
+        {2,  "Lando Norris",    "Britanico",   2, 0, ESTADO_RETIRADO_PILOTO, 19991113},
         {3,  "Charles Leclerc", "Monegasco",   3, 0, ESTADO_ACTIVO_PILOTO, 19971016},
         {4,  "Oscar Piastri",   "Australiano", 2, 0, ESTADO_ACTIVO_PILOTO, 20010406},
         {5,  "Carlos Sainz",    "Espanol",     4, 0, ESTADO_ACTIVO_PILOTO, 19940901},
         {6,  "George Russell",  "Britanico",   1, 0, ESTADO_ACTIVO_PILOTO, 19980215},
         {7,  "Lewis Hamilton",  "Britanico",   3, 0, ESTADO_ACTIVO_PILOTO, 19850107},
-        {8,  "Fernando Alonso", "Espanol",     5, 0, ESTADO_ACTIVO_PILOTO, 19810729},
+        {8,  "Fernando Alonso", "Espanol",     5, 0, ESTADO_RETIRADO_PILOTO, 19810729},
         {9,  "Lance Stroll",    "Canadiense",  5, 0, ESTADO_ACTIVO_PILOTO, 19981029},
-        {10, "Nico Hulkenberg", "Aleman",      6, 0, ESTADO_ACTIVO_PILOTO, 19870819}
+        {10, "Nico Hulkenberg", "Aleman",      6, 0, ESTADO_RETIRADO_PILOTO, 19870819},
+        {11, "Juan Fernandez", "Argentino",    6, 0, ESTADO_ACTIVO_PILOTO, 19870819}
     };
 
-    return generarArchivoTexto(rutaTxt, lote, 10, sizeof(Piloto), escribirPilotoTxt);
+    return generarArchivoTexto(rutaTxt, lote, 11, sizeof(Piloto), escribirPilotoTxt);
 }
-
-/* =========================================================
-   Operaciones con vector
-   ========================================================= */
-
-/**
- * cargarVectorPilotoActivos
- * Lee piloto.bin y carga en vIds (vector de unsigned) los IDs
- * de los pilotos activos, manteniendolos ordenados con cmp.
- * El vector vIds debe estar creado previamente.
- */
-int cargarVectorPilotoActivos(const char* rutaBin,
-                              tVector*    vIds,
-                              Comparar    comparar)
+/* Lee el .txt de pilotos con fscanf y genera el .bin con un registro por piloto */
+int cargarArchivoPilotos(const char* rutaTxt, const char* rutaBin)
 {
     Piloto piloto;
-    FILE*  fPiloto;
+    int camposLeidos = 0;
+    int total = 0;
 
-    fPiloto = fopen(rutaBin, "rb");
-    if (!fPiloto)
-        return ERR_ARCH;
+    char bufferNombre[TAM_NOMBRE_PILOTO];           // fscanf no puede leer directo a struct con espacios
+    char bufferNacionalidad[TAM_NACIONALIDAD];
 
-    while (fread(&piloto, sizeof(Piloto), 1, fPiloto) == 1)
+    FILE* fTxt = fopen(rutaTxt, "rt");
+    FILE* fBin = fopen(rutaBin, "wb");
+
+    if(!fTxt)
+        return total;
+
+    if(!fBin)
     {
-        if (piloto.estado == ESTADO_ACTIVO_PILOTO)
-            insertarVectorOrd(vIds, &piloto.id, comparar);
+        fclose(fTxt);
+        return total;
     }
 
-    fclose(fPiloto);
+    // formato CSV: id,nombre,nacionalidad,id_escuderia,puntos,estado,fechaNacimiento
+    camposLeidos = fscanf(fTxt,
+                          "%u,%29[^,],%29[^,],%u,%u ,%c,%llu\n",
+                          &piloto.id, bufferNombre, bufferNacionalidad,
+                          &piloto.id_escuderia, &piloto.puntos_acumulados,
+                          &piloto.estado,&piloto.fechaNacimiento);
+
+    while(camposLeidos == 7) // si no leyÃ³ los 7 campos, la linea es invalida o llego al fin
+    {
+        copiarCadena(piloto.nombre, bufferNombre, TAM_NOMBRE_PILOTO);
+        copiarCadena(piloto.nacionalidad, bufferNacionalidad, TAM_NACIONALIDAD);
+
+        fwrite(&piloto, sizeof(Piloto), 1, fBin); // escribe el registro binario
+        total++;
+
+        camposLeidos = fscanf(fTxt,
+                              "%u,%29[^,],%29[^,],%u,%u ,%c,%llu\n",
+                              &piloto.id, bufferNombre, bufferNacionalidad,
+                              &piloto.id_escuderia, &piloto.puntos_acumulados,
+                              &piloto.estado,&piloto.fechaNacimiento);
+    }
+
+    fclose(fTxt);
+    fclose(fBin);
+
+    return total;
+}
+/* Lee el .bin y muestra todos los pilotos en formato tabla con ID, nombre, estado y puntos */
+size_t listarPilotos(const char* rutaBin)
+{
+    Piloto piloto;
+    size_t listados = 0;
+
+    FILE* fBin = fopen(rutaBin, "rb");
+
+    if(!fBin)
+        return listados;
+
+    printf("\n");
+    printf("=============================================================\n");
+    printf("  LISTADO DE PILOTOS - TEMPORADA\n");
+    printf("=============================================================\n");
+    printf("%-4s  %-28s  %-10s  %s\n",
+           "ID", "Nombre", "Estado", "Puntos");
+    printf("-------------------------------------------------------------\n");
+
+    while(fread(&piloto, sizeof(Piloto), 1, fBin) == 1) // lee un registro por iteracion
+    {
+        printf("%-4u  %-28s  %-10c  %u\n",
+               piloto.id, piloto.nombre, piloto.estado, piloto.puntos_acumulados);
+
+        listados++;
+    }
+    printf("-------------------------------------------------------------\n");
+
+    fclose(fBin);
+
+    return listados;
+}
+
+int cmp_desc(const void* a, const void* b)
+{
+    const PilotoRef* ra = (const PilotoRef*)a;
+    const PilotoRef* rb = (const PilotoRef*)b;
+    if (rb->puntos > ra->puntos) return  1;
+    if (rb->puntos < ra->puntos) return -1;
+    return 0;
+}
+
+/* Carga referencias (puntos + offset en archivo) de todos los pilotos,
+   las ordena por puntos descendente con qsort y los imprime en ese orden */
+int RankingPiloto(const char* rutaBin) {
+    FILE* fBin = fopen(rutaBin, "rb");
+    if (!fBin)
+        return ERR_ARCH;
+
+    PilotoRef* p;
+    Piloto pil;
+    long offset = 0;
+    size_t cap = CAP_MAX, n = 0;
+    PilotoRef* refs = malloc(cap * sizeof(PilotoRef)); // arreglo dinamico de referencias
+
+    if (!refs)
+    {
+        fclose(fBin);
+        return ERR_MEM;
+    }
+
+    while (fread(&pil, sizeof(Piloto), 1, fBin) == 1) {
+        if (n == cap) {
+            cap *= 2;                                        // duplica capacidad si se llena
+            PilotoRef* tmp = realloc(refs, cap * sizeof(PilotoRef));
+
+            if (!tmp)
+            {
+                free(refs);
+                fclose(fBin);
+                return ERR_MEM;
+            }
+
+            refs = tmp;
+        }
+        if(esPilotoActivos(&pil))//cargar el indicie pregunta si el piloto es activo
+        {
+            (refs + n)->puntos = pil.puntos_acumulados;
+            (refs + n)->offset = offset; //La direccion donde debera buscar en el archivo
+            n++;
+        }
+
+        offset += sizeof(Piloto);
+    }
+
+    qsort(refs, n, sizeof(PilotoRef), cmp_desc);//Ordena el indice por por puntos
+
+    printf("\n");
+    printf("=============================================================\n");
+    printf("  RANKING DE PILOTOS - TEMPORADA\n");
+    printf("=============================================================\n");
+    printf("%-4s  %-28s  %-10s  %s\n", "ID", "Nombre", "Estado", "Puntos");
+    printf("-------------------------------------------------------------\n");
+
+    for (p = refs; p < refs + n; p++) {
+        fseek(fBin, p->offset, SEEK_SET);           // va al registro original en el .bin
+        fread(&pil, sizeof(Piloto), 1, fBin);        // lee el piloto completo
+        printf("%-4u  %-28s  %-10c  %u\n",
+               pil.id, pil.nombre, pil.estado, pil.puntos_acumulados);
+    }
+
+    free(refs);
+    fclose(fBin);
     return TODO_OK;
 }
 
-long buscarPilotoEnBin(const char* rutaBin, unsigned idBuscado, Piloto* dest)
+/**Funciones para manejo de datos TDA vector**/
+//Filter
+int esPilotoActivos(const void* dato)
 {
-    Piloto p;
-    long   offset;
-    FILE*  fBin;
+    Piloto* p = (Piloto*)dato;
 
-    fBin = fopen(rutaBin, "rb");
-    if (!fBin)
-        return -1L;
-
-    while (1)
-    {
-        offset = ftell(fBin);
-        if (fread(&p, sizeof(Piloto), 1, fBin) != 1)
-            break;
-
-        if (p.id == idBuscado)
-        {
-            if (dest)
-                *dest = p;
-            fclose(fBin);
-            return offset;
-        }
-    }
-
-    fclose(fBin);
-    return -1L;
+    return(p->estado == ESTADO_ACTIVO_PILOTO);
 }
 
-/*
- * darBajaPiloto
- * Cambia el estado del piloto a R (retirado) o S (suspendido).
- * Tras el cambio, si el piloto queda inactivo, recalcula los
- * puntos de la temporada para que deje de sumar.
- */
-int darBajaPiloto(const char* rutaBin,
-                  const char* rutaCarrera,
-                  unsigned    idPiloto)
+//Reduce
+int sumarPuntos(void* acumulador, const void* dato)
 {
-    Piloto p;
-    long   offset;
-    FILE*  fBin;
-    int    opcion;
+    Piloto* p = (Piloto*)dato;
 
-    offset = buscarPilotoEnBin(rutaBin, idPiloto, &p);
-    if (offset < 0)
+    *(unsigned*)acumulador += p->puntos_acumulados;
+
+    return TODO_OK;
+}
+
+//Map
+int extraerIdPuntos(void* dest, const void* orig)
+{
+    unsigned* resultado = (unsigned*)dest;
+    Piloto* p = (Piloto*)orig;
+
+    resultado[COL_ID_PILOTO] = p->id;
+    resultado[COL_PUNTOS] = p->puntos_acumulados;
+
+    return TODO_OK;
+}
+
+
+/* Recorre el .bin de pilotos e inserta ordenado en el vector solo los IDs de pilotos activos */
+int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar)
+{
+    Piloto piloto;
+
+    FILE* fPiloto = fopen(rutaBin, "rb");
+
+    if(!fPiloto)
+        return ERR_ARCH;
+
+    while(fread(&piloto, sizeof(Piloto), 1, fPiloto) == 1)
     {
-        printf("[!] Piloto ID %u no encontrado.\n", idPiloto);
+        if(piloto.estado == ESTADO_ACTIVO_PILOTO)
+            insertarVectorOrd(vIds, &piloto.id, comparar); // inserta el ID manteniendo orden
+    }
+
+    fclose(fPiloto);
+
+    return TODO_OK;
+}
+
+/* Busca la escuderia por ID, valida que este activa y lista todos sus pilotos desde el .bin */
+int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia, unsigned idEscuderia)
+{
+    Escuderia esc;
+    Piloto    piloto;
+    FILE*     fEsc;
+    FILE*     fPil;
+    int       encontrado = 0;
+    int       cont = 0;
+
+    fEsc = fopen(rutaEscuderia, "rb");
+    if (!fEsc)
+        return ERR_ARCH;
+
+    // busqueda lineal de la escuderia en el .bin
+    while (fread(&esc, sizeof(Escuderia), 1, fEsc) == 1)
+    {
+        if (esc.id == idEscuderia)
+        {
+            encontrado = 1;
+            break; // encontrada, esc queda cargada con los datos
+        }
+    }
+    fclose(fEsc);
+
+    if (!encontrado)
+    {
+        printf("[!] Escuderia con ID %u no encontrada.\n", idEscuderia);
         return NO_ENCONTRADO;
     }
 
-    if (p.estado != ESTADO_ACTIVO_PILOTO)
+    /* No se listan pilotos de escuderias inactivas */
+    if (esc.estado != ESTADO_ESCUDERIA_ACTIVA)
     {
-        printf("[!] El piloto '%s' ya esta inactivo (estado: %c).\n",
-               p.nombre, p.estado);
-        return ERR_LINEA;
+        printf("[!] La escuderia [%s] %s esta inactiva.\n", esc.codigo, esc.nombre);
+        return TODO_OK;
     }
 
-    printf("\nPiloto: %s\n", p.nombre);
-    printf("Nuevo estado:\n");
-    printf("  1. Retirado (R)\n");
-    printf("  2. Suspendido (S)\n");
-    printf("Opcion: ");
-    scanf("%d", &opcion);
-    limpiarBuffer();
-
-    if (opcion == 1)
-        p.estado = ESTADO_RETIRADO_PILOTO;
-    else if (opcion == 2)
-        p.estado = ESTADO_SUSPENDIDO_PILOTO;
-    else
-    {
-        printf("[!] Opcion invalida. Baja cancelada.\n");
-        return ERR_LINEA;
-    }
-
-    /* Sobreescribir solo este registro */
-    fBin = fopen(rutaBin, "r+b");
-    if (!fBin)
+    fPil = fopen(rutaPiloto, "rb");
+    if (!fPil)
         return ERR_ARCH;
 
-    fseek(fBin, offset, SEEK_SET);
-    fwrite(&p, sizeof(Piloto), 1, fBin);
-    fclose(fBin);
+    printf("\n");
+    printf("=============================================================\n");
+    printf("  PILOTOS DE: [%s] %s\n", esc.codigo, esc.nombre);
+    printf("=============================================================\n");
+    printf("%-4s  %-28s  %-12s  %-6s  %s\n",
+           "ID", "Nombre", "Nacionalidad", "Estado", "Puntos");
+    printf("-------------------------------------------------------------\n");
 
-    printf("[OK] Estado de '%s' actualizado a '%c'.\n", p.nombre, p.estado);
-
-    /* El piloto ya no es activo: sus puntos no deben contar.
-       Se recalcula desde carrera.bin para mantener consistencia. */
-    if (rutaCarrera)
+    while (fread(&piloto, sizeof(Piloto), 1, fPil) == 1)
     {
-        printf("[..] Recalculando puntos de la temporada...\n");
-        /* Importamos la firma necesaria desde carrera.h via include indirecto;
-           la llamada real la hace main.c para evitar dependencia circular.
-           Aqui solo avisamos — ver nota en main.c. */
-        printf("[OK] Llame a recalcularPuntosPilotos() desde el menu para actualizar.\n");
+        if (piloto.id_escuderia == idEscuderia) // filtra solo los pilotos de esa escuderia
+        {
+            printf("%-4u  %-28s  %-12s  %-6c  %u\n",
+                   piloto.id, piloto.nombre, piloto.nacionalidad,
+                   piloto.estado, piloto.puntos_acumulados);
+            cont++;
+        }
     }
 
+    if (cont == 0)
+        printf("  (Sin pilotos registrados para esta escuderia)\n");
+
+    printf("-------------------------------------------------------------\n");
+    printf("  Total: %d piloto(s)\n\n", cont);
+
+    fclose(fPil);
+    return TODO_OK;
+}
+
+/* Lee el .bin de pilotos y exporta cada registro al .txt en formato CSV */
+int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado)
+{
+    FILE* fBin = fopen(rutaBin, "rb");
+
+    if(!fBin)
+    {
+        printf("[!] No se encontro la base de datos de pilotos.\n");
+        return ERR_ARCH;
+    }
+
+    FILE* fTxt = fopen(rutaTxtExportado, "wt");
+
+    if(!fTxt)
+    {
+        printf("[!] No se pudo crear el archivo de exportacion.\n");
+        fclose(fBin);
+        return 0;
+    }
+
+    Piloto p;
+    int registrosExportados = 0;
+
+    while(fread(&p, sizeof(Piloto), 1, fBin))
+    {
+        // formato: id,nombre,estado,id_escuderia,puntos
+        fprintf(fTxt, "%u,%s,%c,%u,%u\n",
+                p.id, p.nombre, p.estado, p.id_escuderia, p.puntos_acumulados);
+        registrosExportados++;
+    }
+
+    fclose(fBin);
+    fclose(fTxt);
+
+    printf("[OK] Se exportaron %d pilotos al archivo de texto.\n", registrosExportados);
+
+    return TODO_OK;
+}
+
+
+/*
+ * altaPiloto
+ * Genera un nuevo piloto con ID autoincremental y lo agrega
+ * al final del binario. El estado inicial es siempre Activo.
+ */
+int altaPiloto(const char* rutaBin)
+{
+    Piloto  nuevo;
+    FILE*   fBin;
+
+    printf("Ingresar ID:");
+    scanf("%u", &nuevo.id);
+
+    nuevo.puntos_acumulados  = 0;
+    nuevo.estado             = ESTADO_ACTIVO_PILOTO;
+
+    printf("\n--- ALTA DE PILOTO (ID asignado: %u) ---\n", nuevo.id);
+
+    pedirDatosPiloto(&nuevo);
+
+    fBin = fopen(rutaBin, "ab");
+    if (!fBin)
+    {
+        printf("[!] No se pudo abrir el archivo de pilotos.\n");
+        return ERR_ARCH;
+    }
+
+    fwrite(&nuevo, sizeof(Piloto), 1, fBin);
+    fclose(fBin);
+
+    printf("[OK] Piloto '%s' registrado con ID %u.\n", nuevo.nombre, nuevo.id);
+    return TODO_OK;
+}
+
+/*
+ * bajaPiloto
+ * Busca el piloto por ID. Si esta activo, cambia su estado a
+ * Retirado o Suspendido segun elija el usuario y sobreescribe
+ * solo ese registro en disco. Ademas registra la baja en el
+ * archivo de texto de bajas.
+ */
+int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
+{
+    Piloto  piloto;
+    FILE*   fBin;
+    FILE*   fBajas;
+    long    offset;
+    unsigned id;
+
+    fBin = fopen(rutaBin, "rb+");
+
+    if (!fBin)
+    {
+        printf("[!] No se pudo abrir el archivo de pilotos.\n");
+        return ERR_ARCH;
+    }
+
+    printf("\n--- BAJA DE PILOTO ---\n");
+    printf("ID del piloto: ");
+    scanf("%u", &id);
+
+    offset = buscarRegistroPorId(fBin, id, &piloto, sizeof(Piloto));
+
+    if (offset == -1L)
+    {
+        printf("[!] Piloto con ID %u no encontrado.\n", id);
+        return NO_ENCONTRADO;
+    }
+
+    if (piloto.estado != ESTADO_ACTIVO_PILOTO)
+    {
+        printf("[!] El piloto '%s' ya tiene estado '%c'. No se realizo cambio.\n",
+               piloto.nombre, piloto.estado);
+        return TODO_OK;
+    }
+
+    printf("  Piloto encontrado: %s\n", piloto.nombre);
+
+    piloto.estado = (char)ingresarEstadoBaja();
+
+    fseek(fBin, offset, SEEK_SET);
+    fwrite(&piloto, sizeof(Piloto), 1, fBin);
+    fclose(fBin);
+
+    /* Registrar la baja en el archivo de texto */
+    fBajas = fopen(rutaBajasTxt, "at");
+    if (fBajas)
+    {
+        fprintf(fBajas, "PILOTO|%u|%s|%c\n", piloto.id, piloto.nombre, piloto.estado);
+        fclose(fBajas);
+    }
+
+    printf("[OK] Estado del piloto '%s' actualizado a '%c'.\n",
+           piloto.nombre, piloto.estado);
     return TODO_OK;
 }
 
 /*
  * modificarPiloto
- * Muestra el registro actual y permite editar campo por campo.
- * Solo sobreescribe el registro en disco, no reescribe el archivo.
+ * Busca el piloto por ID y presenta un submenu de campos.
+ * El usuario elige que campo modificar; el ciclo repite hasta
+ * que elija 0. Al finalizar sobreescribe el registro completo.
  */
-int modificarPiloto(const char* rutaBin, unsigned idPiloto)
+int modificarPiloto(const char* rutaBin)
 {
-    Piloto p;
-    long   offset;
-    FILE*  fBin;
-    int    opcion;
-    int    continuar;
-    char   estadoNuevo;
+    Piloto   piloto;
+    FILE*    fBin;
+    long     offset;
+    unsigned id;
+    int      campo;
     unsigned long long fechaNueva;
+    int nuevoEstado;
 
-    offset = buscarPilotoEnBin(rutaBin, idPiloto, &p);
-    if (offset < 0)
+    fBin = fopen(rutaBin, "rb+");
+    if (!fBin)
     {
-        printf("[!] Piloto ID %u no encontrado.\n", idPiloto);
+        printf("[!] No se pudo abrir el archivo de pilotos.\n");
+        return ERR_ARCH;
+    }
+
+    printf("\n--- MODIFICAR PILOTO ---\n");
+    printf("ID del piloto: ");
+    scanf("%u", &id);
+
+    offset = buscarRegistroPorId(fBin, id, &piloto, sizeof(Piloto));
+
+    if (offset == -1L)
+    {
+        printf("[!] Piloto con ID %u no encontrado.\n", id);
         return NO_ENCONTRADO;
     }
 
-    continuar = 1;
+    mostrarCamposPiloto(&piloto);
+    printf("Campo a modificar: ");
+    scanf("%d", &campo);
 
-    while (continuar)
+    while (campo != 0)
     {
-        printf("\n--- Modificar Piloto ID %u ---\n", p.id);
-        printf("  1. Nombre          [%s]\n",   p.nombre);
-        printf("  2. Nacionalidad    [%s]\n",   p.nacionalidad);
-        printf("  3. ID Escuderia    [%u]\n",   p.id_escuderia);
-        printf("  4. Estado          [%c]\n",   p.estado);
-        printf("  5. Fecha Nacim.    [%llu]\n", p.fechaNacimiento);
-        printf("  0. Confirmar y guardar\n");
-        printf("Campo a modificar: ");
-        scanf("%d", &opcion);
         limpiarBuffer();
 
-        switch (opcion)
+        switch (campo)
         {
         case 1:
             printf("Nuevo nombre: ");
-            leerCadena(p.nombre, TAM_NOMBRE_PILOTO);
+            leerCadena(piloto.nombre, TAM_NOMBRE_PILOTO);
             break;
 
         case 2:
             printf("Nueva nacionalidad: ");
-            leerCadena(p.nacionalidad, TAM_NACIONALIDAD);
+            leerCadena(piloto.nacionalidad, TAM_NACIONALIDAD);
             break;
 
         case 3:
-            printf("Nuevo ID escuderia: ");
-            scanf("%u", &p.id_escuderia);
-            limpiarBuffer();
+            printf("Nuevo ID Escuderia: ");
+            scanf("%u", &piloto.id_escuderia);
             break;
 
         case 4:
-            printf("Nuevo estado (A=Activo, R=Retirado, S=Suspendido): ");
-            scanf(" %c", &estadoNuevo);
-            limpiarBuffer();
-            if (estadoNuevo == ESTADO_ACTIVO_PILOTO    ||
-                estadoNuevo == ESTADO_RETIRADO_PILOTO  ||
-                estadoNuevo == ESTADO_SUSPENDIDO_PILOTO)
+            do
             {
-                p.estado = estadoNuevo;
+                printf("Nueva fecha nacimiento (AAAAMMDD): ");
+                scanf("%llu", &fechaNueva);
             }
-            else
-                printf("[!] Estado invalido. No se modifico.\n");
+            while (!esFechaValida(fechaNueva));
+            piloto.fechaNacimiento = fechaNueva;
             break;
 
         case 5:
-            do
-            {
-                printf("Nueva fecha de nacimiento (AAAAMMDD): ");
-                scanf("%llu", &fechaNueva);
-                limpiarBuffer();
-                if (!esFechaValida(fechaNueva))
-                    printf("[!] Fecha invalida.\n");
-            }
-            while (!esFechaValida(fechaNueva));
-            p.fechaNacimiento = fechaNueva;
-            break;
+        do{
+            printf("  [1] Activo      (A)\n");
+            printf("  [2] Retirado    (R)\n");
+            printf("  [3] Suspendido  (S)\n");
+            printf("Nuevo Estado:");
+            scanf("%d", &nuevoEstado);
 
-        case 0:
-            continuar = 0;
-            break;
+        }while (nuevoEstado < 1 || nuevoEstado > 3);
 
+        piloto.estado = (nuevoEstado == 1 ? ESTADO_ACTIVO_PILOTO : (nuevoEstado == 2 ? ESTADO_RETIRADO_PILOTO : ESTADO_SUSPENDIDO_PILOTO));
+
+        break;
         default:
-            printf("[!] Opcion invalida.\n");
+            printf("[!] Campo invalido.\n");
             break;
         }
+
+        mostrarCamposPiloto(&piloto);
+        printf("Campo a modificar: ");
+        scanf("%d", &campo);
     }
 
-    /* Sobreescribir solo este registro */
-    fBin = fopen(rutaBin, "r+b");
-    if (!fBin)
-        return ERR_ARCH;
 
     fseek(fBin, offset, SEEK_SET);
-    fwrite(&p, sizeof(Piloto), 1, fBin);
+    fwrite(&piloto, sizeof(Piloto), 1, fBin);
     fclose(fBin);
 
-    printf("[OK] Piloto '%s' modificado correctamente.\n", p.nombre);
+    printf("[OK] Piloto ID %u modificado correctamente.\n", piloto.id);
     return TODO_OK;
 }
-
-/* =========================================================
-   Punteros a funcion del TDA Piloto
-   ========================================================= */
-
-/**
- * trozarPilotoTxt  [TxtABin]
- * Parsea una linea CSV con el formato:
- *   id,nombre,nacionalidad,id_escuderia,puntos,estado,fechaNac
- * Carga los datos en el registro apuntado por 'reg'.
- * Retorna TODO_OK si se leyeron los 7 campos, ERR_LINEA si no.
- */
-int trozarPilotoTxt(char* linea, void* reg)
-{
-    Piloto* p   = (Piloto*)reg;
-    char*   act = strchr(linea, '\n');
-
-    if(!act)
-        return ERR_LINEA;
-
-    *act = '\0';
-
-    /* fechaNacimiento */
-    act = strrchr(linea, SEP_TXT);
-    sscanf(act + 1, "%llu", &p->fechaNacimiento);
-    *act = '\0';
-
-    /* estado */
-    act = strrchr(linea, SEP_TXT);
-    p->estado = *(act + 1);
-    *act = '\0';
-
-    /* puntos_acumulados */
-    act = strrchr(linea, SEP_TXT);
-    sscanf(act + 1, "%u", &p->puntos_acumulados);
-    *act = '\0';
-
-    /* id_escuderia */
-    act = strrchr(linea, SEP_TXT);
-    sscanf(act + 1, "%u", &p->id_escuderia);
-    *act = '\0';
-
-    /* nacionalidad */
-    act = strrchr(linea, SEP_TXT);
-    copiarCadena(p->nacionalidad, act + 1, TAM_NACIONALIDAD);
-    *act = '\0';
-
-    /* nombre */
-    act = strrchr(linea, SEP_TXT);
-    copiarCadena(p->nombre, act + 1, TAM_NOMBRE_PILOTO);
-    *act = '\0';
-
-    /* id — lo que queda al inicio */
-    sscanf(linea, "%u", &p->id);
-
-    return TODO_OK;
-}
-
-/**
- * pilotoBinATxt  [BinATxt]
- * Escribe un Piloto en formato CSV en el archivo de texto.
- * Firma compatible con el typedef BinATxt de utilidades.h.
- */
-void pilotoBinATxt(const void* dato, FILE* archTxt)
-{
-    const Piloto* p = (const Piloto*)dato;
-
-    fprintf(archTxt, "%u%c%s%c%s%c%u%c%u%c%c%c%llu\n",
-            p->id,               SEP_TXT,
-            p->nombre,           SEP_TXT,
-            p->nacionalidad,     SEP_TXT,
-            p->id_escuderia,     SEP_TXT,
-            p->puntos_acumulados,SEP_TXT,
-            p->estado,           SEP_TXT,
-            p->fechaNacimiento);
-}
-
-/**
- * escribirPilotoTxt  [Accion]
- * Misma logica que pilotoBinATxt pero con la firma Accion:
- *   int f(void* contexto, const void* dato)
- * Se usa con generarArchivoTexto() para el lote inicial.
- */
-int escribirPilotoTxt(void* archTxt, const void* dato)
-{
-    pilotoBinATxt(dato, (FILE*)archTxt);
-    return TODO_OK;
-}
-
-/**
- * mostrarPiloto  [Mostrar]
- * Imprime un Piloto formateado por pantalla.
- * Se pasa a mostrarArchivoBinario() para el listado.
- */
-void mostrarPiloto(const void* dato)
-{
-    const Piloto* p = (const Piloto*)dato;
-
-    printf("%-4u  %-28s  %-12s  Esc:%-2u  Pts:%-4u  [%c]\n",
-           p->id,
-           p->nombre,
-           p->nacionalidad,
-           p->id_escuderia,
-           p->puntos_acumulados,
-           p->estado);
-}
-
-/**
- * esPilotoActivo  [Filter]
- * Retorna 1 si el piloto tiene estado ACTIVO, 0 si no.
- * Se usa para filtrar pilotos en operaciones de vector/archivo.
- */
-int esPilotoActivo(const void* dato)
-{
-    return (((const Piloto*)dato)->estado == ESTADO_ACTIVO_PILOTO);
-}
-
-/**
- * sumarPuntos  [Reduce]
- * Acumula los puntos de un piloto en un unsigned*.
- * Uso: reducirVector(&vPilotos, &total, sumarPuntos)
- */
-int sumarPuntos(void* acumulador, const void* dato)
-{
-    *(unsigned*)acumulador += ((const Piloto*)dato)->puntos_acumulados;
-    return TODO_OK;
-}
-
-/**
- * extraerIdPuntos  [Map]
- * Transforma un Piloto en un array unsigned[2] = {id, puntos}.
- * Uso: mapearVector(&vPilotos, &vResultados, sizeof(unsigned[2]), extraerIdPuntos)
- */
-int extraerIdPuntos(void* dest, const void* orig)
-{
-    unsigned*     resultado = (unsigned*)dest;
-    const Piloto* p         = (const Piloto*)orig;
-
-    resultado[COL_ID_PILOTO] = p->id;
-    resultado[COL_PUNTOS]    = p->puntos_acumulados;
-
-    return TODO_OK;
-}
-

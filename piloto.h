@@ -2,108 +2,59 @@
 #define PILOTO_H_INCLUDED
 
 #include "vector.h"
+#include <stdlib.h>
+#include <stdio.h>
 
-/* =========================================================
-   Rutas de archivos del TDA Piloto
-   ========================================================= */
-#define RUTA_PILOTO_BIN  "archivos/piloto.dat"
-#define RUTA_PILOTO_TXT  "archivos/piloto.txt"
+#define RUTA_PILOTO_TXT                "archivos/pilotos.txt"
+#define RUTA_PILOTO_BIN                "archivos/pilotos.dat"
+#define RUTA_PILOTO_EXP_TXT            "archivos/piloto_exportado.txt"
+#define RUTA_BAJAS_PILOTO_TXT          "archivos/bajas_pilotos.txt"
 
-/* =========================================================
-   Estados del piloto (campo 'estado')
-   ========================================================= */
-#define ESTADO_ACTIVO_PILOTO     'A'
-#define ESTADO_RETIRADO_PILOTO   'R'
-#define ESTADO_SUSPENDIDO_PILOTO 'S'
+#define ESTADO_ACTIVO_PILOTO            'A'
+#define ESTADO_RETIRADO_PILOTO          'R'
+#define ESTADO_SUSPENDIDO_PILOTO        'S'
+#define TAM_NOMBRE_PILOTO               30
+#define TAM_NACIONALIDAD                30
+#define CAP_MAX                         64
+#define ERR_MEM                         1
 
-/* =========================================================
-   Tamanios de campos de cadena
-   ========================================================= */
-#define TAM_NOMBRE_PILOTO  30
-#define TAM_NACIONALIDAD   30
+//No se donde #$!"#! meter esto
+#define COL_ID_PILOTO               0
+#define COL_PUNTOS                  1
 
-/* =========================================================
-   Indices de columnas en la matriz resultados de Carrera
-   (definidos aqui porque Piloto los necesita para reducir)
-   ========================================================= */
-#define COL_ID_PILOTO  0
-#define COL_PUNTOS     1
+typedef struct {
+    unsigned id;
+    char nombre[TAM_NOMBRE_PILOTO];
+    char nacionalidad[TAM_NACIONALIDAD];
+    unsigned id_escuderia;
+    unsigned puntos_acumulados;
+    char estado;    /** A, R o S **/
+    unsigned long long fechaNacimiento;
+}Piloto;
 
-/* =========================================================
-   Estructura Piloto
-   Corresponde exactamente al registro binario en piloto.bin
-   ========================================================= */
-typedef struct
-{
-    unsigned           id;
-    char               nombre[TAM_NOMBRE_PILOTO];
-    char               nacionalidad[TAM_NACIONALIDAD];
-    unsigned           id_escuderia;
-    unsigned           puntos_acumulados;
-    char               estado;           /* A, R o S */
-    unsigned long long fechaNacimiento;  /* AAAAMMDD  */
-} Piloto;
+typedef struct {
+    unsigned puntos;
+    long offset;
+} PilotoRef;
 
-/* =========================================================
-   Generacion y carga de archivos (inicializacion)
-   ========================================================= */
 
-/* Genera el lote inicial de prueba en piloto.txt */
 int generarArchivoPilotosTxt(const char* rutaTxt);
+int cargarArchivoPilotos(const char* pathTxt, const char* rutaBin);
+size_t listarPilotos(const char* rutaBin);
+int cmp_desc(const void* a, const void* b);
+int RankingPiloto(const char* rutaBin);
+int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado);
 
-/* =========================================================
-   Operaciones con vector de pilotos
-   ========================================================= */
+/**Funciones para manejo de datos TDA vector**/
+int esPilotoActivos(const void* dato);
+int sumarPuntos(void* acumulador, const void* dato);
+int extraerIdPuntos(void* dest, const void* orig);
+int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar);
+int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia, unsigned idEscuderia);
 
-/* Carga en vPilotos (ordenado por id) solo los pilotos activos */
-int cargarVectorPilotoActivos(const char* rutaBin,
-                              tVector*    vIds,
-                              Comparar    comparar);
+/* --- ABM --- */
+int altaPiloto(const char* rutaBin);
+int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt);
+int modificarPiloto(const char* rutaBin);
 
-    /* =========================================================
-            ABM directo sobre archivo binario
-   ========================================================= */
-
-/* Busca un piloto por ID en el .bin.
-   Si lo encuentra, carga 'dest' y retorna el offset del registro.
-   Retorna -1L si no existe. */
-long buscarPilotoEnBin(const char* rutaBin, unsigned idBuscado, Piloto* dest);
-
-/* Baja logica: cambia estado a R o S segun lo que ingrese el usuario.
-   Ademas recalcula puntos si el piloto queda inactivo. */
-int darBajaPiloto(const char* rutaBin,
-                  const char* rutaCarrera,
-                  unsigned    idPiloto);
-
-/* Modificacion: muestra el registro actual y permite editar
-   cada campo (excepto id y puntos_acumulados que son calculados).
-   Sobreescribe solo ese registro con fseek+fwrite. */
-int modificarPiloto(const char* rutaBin, unsigned idPiloto);
-
-/* =========================================================
-   Punteros a funcion del TDA Piloto
-   Estas funciones son las "implementaciones especificas" que
-   se pasan a las funciones genericas de utilidades y vector.
-   ========================================================= */
-
-/* TxtABin: parsea una linea CSV y carga un Piloto */
-int  trozarPilotoTxt(char* linea, void* reg);
-
-/* BinATxt: escribe un Piloto en formato CSV al archivo txt */
-void pilotoBinATxt(const void* dato, FILE* archTxt);
-
-/* Mostrar: imprime un Piloto formateado por pantalla */
-void mostrarPiloto(const void* dato);
-
-/* Accion (para generarArchivoTexto): escribe Piloto en FILE* */
-int  escribirPilotoTxt(void* archTxt, const void* dato);
-
-/* Filter: retorna 1 si el piloto esta activo */
-int  esPilotoActivo(const void* dato);
-
-/* Reduce: suma los puntos del piloto al acumulador unsigned */
-int  sumarPuntos(void* acumulador, const void* dato);
-
-/* Map: extrae {id, puntos} de un Piloto a un array unsigned[2] */
-int  extraerIdPuntos(void* dest, const void* orig);
 #endif // PILOTO_H_INCLUDED
