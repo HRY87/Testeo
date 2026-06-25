@@ -343,7 +343,6 @@ static void finalizarTemporada(void)
     remove(RUTA_CARRERA_BIN);
     remove(RUTA_PILOTO_BIN);
     remove(RUTA_ESCUDERIA_BIN);
-
     printf("\n[OK] Temporada finalizada.\n");
 }
 

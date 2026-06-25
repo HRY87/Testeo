@@ -3,6 +3,7 @@
 #include "piloto.h"
 #include "escuderia.h"
 #include "utilidades.h"
+#include "indice.h"
 
 static void pedirDatosPiloto(Piloto* p);
 static int ingresarEstadoBaja(void);
@@ -484,8 +485,7 @@ int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado)
     while(fread(&p, sizeof(Piloto), 1, fBin))
     {
         // formato: id,nombre,estado,id_escuderia,puntos
-        fprintf(fTxt, "%u,%s,%c,%u,%u\n",
-                p.id, p.nombre, p.estado, p.id_escuderia, p.puntos_acumulados);
+        fprintf(fTxt, "%u,%s,%c,%u,%u\n", p.id, p.nombre, p.estado, p.id_escuderia, p.puntos_acumulados);
         registrosExportados++;
     }
 
@@ -529,6 +529,9 @@ int altaPiloto(const char* rutaBin)
     fwrite(&nuevo, sizeof(Piloto), 1, fBin);
     fclose(fBin);
 
+    /**Siempre despues de una alta se debe volver hacer el indice**/
+    construirIndicePilotos(rutaBin, RUTA_INDICE_PILOTO);
+
     printf("[OK] Piloto '%s' registrado con ID %u.\n", nuevo.nombre, nuevo.id);
     return TODO_OK;
 }
@@ -561,7 +564,7 @@ int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
     printf("ID del piloto: ");
     scanf("%u", &id);
 
-    offset = buscarRegistroPorId(fBin, id, &piloto, sizeof(Piloto));
+     offset = buscarPilotoPorIndice(RUTA_INDICE_PILOTO, fBin, id, &piloto);
 
     if (offset == -1L)
     {
@@ -592,8 +595,7 @@ int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
         fclose(fBajas);
     }
 
-    printf("[OK] Estado del piloto '%s' actualizado a '%c'.\n",
-           piloto.nombre, piloto.estado);
+    printf("[OK] Estado del piloto '%s' actualizado a '%c'.\n",piloto.nombre, piloto.estado);
     return TODO_OK;
 }
 
@@ -627,7 +629,7 @@ int modificarPiloto(const char* rutaBin)
     scanf("%u", &id);
 
     /**Busco el offset del registro para usar con el fseek*/
-    offset = buscarRegistroPorId(fBin, id, &piloto, sizeof(Piloto));
+    offset = buscarPilotoPorIndice(RUTA_INDICE_PILOTO, fBin, id, &piloto);
 
     if (offset == -1L)
     {

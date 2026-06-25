@@ -4,8 +4,8 @@
 #define TODO_OK         0
 #define ERR_ARCH        1
 #define ERR_CAD         2
-#define NO_ENCONTRADO   4
 #define ERR_LINEA       3
+#define NO_ENCONTRADO   4
 
 /**Defines para fecha**/
 #define ANIO_BASE       1601
