@@ -1,57 +1,59 @@
 #ifndef UTILIDADES_H_INCLUDED
 #define UTILIDADES_H_INCLUDED
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #define TODO_OK         0
 #define ERR_ARCH        1
 #define ERR_CAD         2
 #define ERR_LINEA       3
 #define NO_ENCONTRADO   4
+#define ERR_MEM         5
+#define SIN_MEM         1
 
-/**Defines para fecha**/
-#define ANIO_BASE       1601
-#define ES_ANIO_BISIESTO(X)(((X) % 4 == 0 && (X) % 100 != 0) || ((X) % 400 == 0))
+/* Formato de fecha almacenado como entero AAAAMMDD */
+#define ES_ANIO_BISIESTO(X) (((X) % 4 == 0 && (X) % 100 != 0) || ((X) % 400 == 0))
 #define TAM_LINEA       256
 
-/* =========================================================
-   Separador de campos en archivos de texto.
-   Cambiar aqui afecta a TODO el proyecto: trozar*, escribir*
-   ========================================================= */
+/* Separador de campos en archivos de texto.
+   Cambiar aqui afecta a TODO el proyecto. */
 #define SEP_TXT         '|'
 
-typedef int(*Comparar)(const void* d1, const void* d2);
-typedef void(*Mostrar)(const void* d);
-typedef int (*Accion)(void* accion, const void* dato);
-/* Convierte un registro binario a texto (escribe en FILE*) */
-typedef int(*BinATxt)(const void* dato, FILE* archTxt);
+typedef int  (*Comparar)(const void* d1, const void* d2);
+typedef void (*Mostrar) (const void* d);
+typedef int  (*Accion)  (void* archivo, const void* dato);
+/* Convierte un registro binario a texto (escribe en FILE*). */
+typedef int  (*BinATxt) (const void* dato, FILE* archTxt);
 /* Convierte una linea de texto en un registro binario.
    Retorna TODO_OK si la linea es valida, ERR_LINEA si no. */
-typedef int(*TxtABin)(char* linea, void* registro);
+typedef int  (*TxtABin) (char* linea, void* registro);
 
-/**Funciones generales**/
-int copiarCadena(char* dest, const char* src, size_t n);
-int leerCadena(char* dest, size_t n);;
-void intercambiar(void* d1, void* d2, size_t tam);
-void limpiarBuffer(void);
+/* Funciones generales */
+int  copiarCadena   (char* dest, const char* src, size_t n);
+int  leerCadena     (char* dest, size_t n);
+void intercambiar   (void* d1, void* d2, size_t tam);
+void limpiarBuffer  (void);
 
-/**Funciones para Archivos**/
-int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem, size_t tamElem, Accion accion);
-int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar);
+/* Funciones para archivos */
+int generarArchivoTexto     (const char* rutaTxt, const void* datos, size_t cantElem, size_t tamElem, Accion escribir);
+int mostrarArchivoBinario   (const char* rutaBin, size_t tamElem, Mostrar mostrar);
+int convertirArchivoTxtABin (const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin trozarLinea);
+int convertirArchivoBinATxt (const char* rutaBin, const char* rutaTxt, size_t tamElem, BinATxt escribirRegistro);
 
-/* Convierte un .txt a .bin usando la funcion txtABin del TDA */
-int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin txtABin);
-int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tamElem, BinATxt escribirRegistro);
-
-/**Funciones para fecha**/
-int diasPorMes(unsigned mes, unsigned anio);
+/* Funciones para fecha */
+int diasPorMes   (unsigned mes, unsigned anio);
 int esFechaValida(unsigned long long fecha);
 
-/**Puntero a funcion**/
+/* Comparador generico de unsigned: compatible con qsort e insertarVectorOrd. */
 int compararUnsigned(const void* a, const void* b);
-int escribirPilotoTxt(void* accion, const void* dato);
 
-/**Recibe solo el FILE* (usar rewind al inicio)**/
+/* Busqueda lineal generica por clave en archivo binario.
+   Compara los primeros tamClave bytes de cada registro con clave.
+   Retorna el offset del registro encontrado o -1L si no existe. */
 long buscarRegistroPorId(FILE* fBin, const void* clave, void* reg, size_t tamElem, size_t tamClave);
 
-/**Validador si un archivo existe**/
+/* Retorna 1 si el archivo en ruta existe y puede abrirse, 0 si no. */
 int archivoExiste(const char* ruta);
-#endif // UTILIDADES_H_INCLUDED
+
+#endif /* UTILIDADES_H_INCLUDED */

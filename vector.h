@@ -3,49 +3,52 @@
 
 #include "utilidades.h"
 
-#define SIN_MEM                 1
-#define DUPLICADO               2
 #define VEC_LLENO               3
 #define VEC_VACIO               4
 #define NO_EXISTE               5
 
-#define TOPE_INICIAL            4
+#define CAPACIDAD_MINIMA        4
 #define FACTOR_INCREMENTAL      2
 
-#define ES_VECTOR_LLENO(X,Y)    ((X) == (Y) ? VEC_LLENO : 0)
-#define ES_VECTOR_VACIO(X)      ((X) == 0 ? VEC_VACIO : 0)
+#define ES_VECTOR_LLENO(X, Y)   ((X) == (Y) ? VEC_LLENO : 0)
+#define ES_VECTOR_VACIO(X)      ((X) == 0   ? VEC_VACIO : 0)
 
-typedef int(*Map)(void* destino, const void* origen);
-typedef int(*Filter)(const void* dato);
-typedef int(*Reduce)(void* acumulador, const void* dato);
+typedef int  (*Map)   (void* destino, const void* origen);
+typedef int  (*Filter)(const void* dato);
+typedef int  (*Reduce)(void* acumulador, const void* dato);
 
 typedef struct
 {
-    void* vec; //Memoria donde estan los elementos
-    size_t ce; //Cantidad de elementos
-    size_t tamElem; //Tamanio de cada elemento
-    size_t cap; //Capacidad maxima
-}tVector;
+    void*  vec;      /* Bloque contiguo de elementos en heap */
+    size_t ce;       /* Cantidad de elementos cargados       */
+    size_t tamElem;  /* Tamanio de cada elemento en bytes    */
+    size_t cap;     /* Capacidad maxima                     */
+} tVector;
 
+/* Ciclo de vida */
 int crearVector(tVector* v, size_t tamElem, size_t capacidad);
-void destruirVector(tVector* v);
 int redimensionarVector(tVector* v, size_t nuevaCap);
-int insertarVectorOrd(tVector* v, void* dato, Comparar cmp);
-int insertarFinalVector(tVector* v, const void* dato);
-void* busquedaBinariaVector(tVector* v, void* clave, Comparar cmp);
+void destruirVector(tVector* v);
+
+/* Insercion */
+int insertarVectorOrd   (tVector* v, void* dato, Comparar cmp);
+int insertarFinalVector (tVector* v, const void* dato);
+
+/* Busqueda */
+void* busquedaBinariaVector(tVector* v, void* clave, Comparar comparar);
 void* obtenerElementoVector(tVector* v, size_t pos);
 
-/**Funciones para vector-archivo**/
+/* Persistencia */
 int cargarVectorDesdeBin(const char* rutaBin, tVector* v);
 int guardarVectorEnBin  (const char* rutaBin, tVector* v);
 
-/**Funciones genericas para manejo de datos**/
+/* Operaciones funcionales genericas */
 int filtrarVector(tVector* origen, tVector* destino, Filter filtro);
 int reducirVector(tVector* v, void* acumulador, Reduce reducir);
-int mapearVector (tVector* origen, tVector* destino, size_t tamDestino, Map mapear);
+int mapearVector(tVector* origen, tVector* destino, size_t tamDestino, Map mapear);
 
-/**Auxiliares**/
+/* Auxiliares */
 void mostrarVector(tVector* v, Mostrar mostrar);
 void generarResultadoAleatorioVector(tVector* v);
 
-#endif // VECTOR_H_INCLUDED
+#endif /* VECTOR_H_INCLUDED */

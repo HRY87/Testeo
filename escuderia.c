@@ -4,19 +4,18 @@
 #include "escuderia.h"
 #include "utilidades.h"
 
-static void pedirDatosEscuderia(Escuderia* e);
+/* =========================================================
+   Funciones estaticas auxiliares
+   ========================================================= */
+
+static void pedirDatosEscuderia  (Escuderia* e);
 static void mostrarCamposEscuderia(const Escuderia* e);
 
 /**
  * pedirDatosEscuderia  [static]
- * Solicita al usuario los datos editables de una escuderia:
- * codigo, nombre y pais. Llama a limpiarBuffer() antes de
- * leerCadena() para descartar residuos del scanf anterior.
- * El segundo limpiarBuffer() entre codigo y nombre es necesario
- * porque leerCadena usa fgets, que puede dejar el buffer sucio
- * si el usuario ingreso mas caracteres de los permitidos.
+ * Solicita codigo, nombre y pais. Llama a limpiarBuffer() antes de
+ * cada leerCadena() para descartar residuos de scanf.
  */
-
 static void pedirDatosEscuderia(Escuderia* e)
 {
     limpiarBuffer();
@@ -34,10 +33,8 @@ static void pedirDatosEscuderia(Escuderia* e)
 
 /**
  * mostrarCamposEscuderia  [static]
- * Muestra los campos editables de la escuderia con su valor
- * actual, numerados para que el usuario elija cual modificar.
- * El estado se traduce de int a texto (Activo/Inactivo).
- * Se usa en el submenu de modificarEscuderia().
+ * Muestra los campos editables numerados para que el usuario
+ * elija cual modificar. Estado se traduce a texto.
  */
 static void mostrarCamposEscuderia(const Escuderia* e)
 {
@@ -45,95 +42,87 @@ static void mostrarCamposEscuderia(const Escuderia* e)
     printf("  [1] Codigo : %s\n", e->codigo);
     printf("  [2] Nombre : %s\n", e->nombre);
     printf("  [3] Pais   : %s\n", e->pais);
-    printf("  [4] Estado : %s\n", (e->estado == 1 ? "Activo" : "Inactivo"));
+    printf("  [4] Estado : %s\n", (e->estado == ESTADO_ESCUDERIA_ACTIVA ? "Activo" : "Inactivo"));
     printf("  [0] Salir\n");
 }
 
+/* =========================================================
+   Generacion del lote inicial
+   ========================================================= */
+
 /**
-* generarArchivoEscuderiasTxt
-* Crea el archivo escuderia.txt con el lote inicial.
-* Usa generarArchivoTexto() + escribirEscuderiaTxt().
-* Retorna TODO_OK o ERR_ARCH.
-*/
+ * generarArchivoEscuderiasTxt
+ * Crea escuderias.txt con el lote inicial usando generarArchivoTexto()
+ * y escribirEscuderiaTxt() como Accion.
+ * Retorna TODO_OK o ERR_ARCH.
+ */
 int generarArchivoEscuderiasTxt(const char* rutaTxt)
 {
     Escuderia lote[6] =
     {
-        {1, "RBR", "Red Bull Racing", "Austria",    ESTADO_ESCUDERIA_ACTIVA},
+        {1, "RBR", "Red Bull Racing", "Austria",     ESTADO_ESCUDERIA_ACTIVA},
         {2, "MCL", "McLaren",         "Reino Unido", ESTADO_ESCUDERIA_ACTIVA},
-        {3, "FER", "Ferrari",         "Italia",     ESTADO_ESCUDERIA_ACTIVA},
+        {3, "FER", "Ferrari",         "Italia",      ESTADO_ESCUDERIA_ACTIVA},
         {4, "WLF", "Williams",        "Reino Unido", ESTADO_ESCUDERIA_ACTIVA},
         {5, "AMR", "Aston Martin",    "Reino Unido", ESTADO_ESCUDERIA_ACTIVA},
-        {6, "SAU", "Sauber",          "Suiza",      ESTADO_ESCUDERIA_ACTIVA}
+        {6, "SAU", "Sauber",          "Suiza",       ESTADO_ESCUDERIA_ACTIVA}
     };
 
     return generarArchivoTexto(rutaTxt, lote, 6, sizeof(Escuderia), escribirEscuderiaTxt);
 }
 
-
 /* =========================================================
-            Punteros a funcion del TDA Escuderia
+   Punteros a funcion del TDA Escuderia
    ========================================================= */
 
 /**
  * trozarEscuderiaTxt  [TxtABin]
- * Parsea una linea CSV con formato:
- *   id|codigo|nombre|pais|estado
- * usando strrchr() de atras hacia adelante para evitar copias
- * auxiliares: cada llamada encuentra el ultimo separador,
- * lee el campo a su derecha y "corta" la cadena con '\0'.
- * Retorna TODO_OK si la linea es valida, ERR_LINEA si no
- * tiene '\n' (formato incorrecto).
+ * Parsea una linea con formato id|codigo|nombre|pais|estado de
+ * atras hacia adelante con strrchr, igual que el resto de los TDA.
+ * Retorna TODO_OK o ERR_LINEA.
  */
-/* Parsea una linea CSV "id,codigo,nombre,pais,estado" y llena el struct Escuderia */
 int trozarEscuderiaTxt(char* linea, void* reg)
 {
     Escuderia* e   = (Escuderia*)reg;
-    char*   act = strchr(linea, '\n'); // busca el fin de linea para truncar
+    char*      act = strchr(linea, '\n');
 
-    if(!act)
+    if (!act)
         return ERR_LINEA;
 
-    *act = '\0'; // elimina el \n para que strrchr no lo incluya en los campos
+    *act = '\0';
 
-    /* Parseo de atras hacia adelante: cada strrchr encuentra el ultimo separador,
-       lee el campo a su derecha y lo "corta" poniendo \0 */
+    act = strrchr(linea, SEP_TXT);
+    sscanf(act + 1, "%d", &e->estado);
+    *act = '\0';
 
-    /* Estado */
-    act = strrchr(linea, SEP_TXT);     // apunta al ultimo separador
-    sscanf(act + 1, "%d", &e->estado); // lee el campo a la derecha
-    *act = '\0';                        // corta para la siguiente pasada
-
-    /* Pais */
     act = strrchr(linea, SEP_TXT);
     copiarCadena(e->pais, act + 1, TAM_PAIS);
     *act = '\0';
 
-    /* Nombre */
     act = strrchr(linea, SEP_TXT);
     copiarCadena(e->nombre, act + 1, TAM_NOMBRE_ESCUDERIA);
     *act = '\0';
 
-    /* Codigo */
     act = strrchr(linea, SEP_TXT);
     copiarCadena(e->codigo, act + 1, TAM_CODIGO);
     *act = '\0';
 
-    /* Id lo que queda al inicio */
     sscanf(linea, "%u", &e->id);
 
     return TODO_OK;
 }
 
 /**
-* escuderiaBinATxt  [BinATxt]
-* Escribe una Escuderia en formato .txt en el archivo de texto.
-*/
+ * escuderiaBinATxt  [BinATxt]
+ * Escribe una Escuderia en formato texto con separador SEP_TXT.
+ * Mismo formato que trozarEscuderiaTxt espera.
+ * Retorna TODO_OK o ERR_ARCH.
+ */
 int escuderiaBinATxt(const void* dato, FILE* archTxt)
 {
     const Escuderia* e = (const Escuderia*)dato;
 
-    if(!dato || !archTxt)
+    if (!dato || !archTxt)
         return ERR_ARCH;
 
     fprintf(archTxt, "%u%c%s%c%s%c%s%c%d\n",
@@ -147,62 +136,57 @@ int escuderiaBinATxt(const void* dato, FILE* archTxt)
 }
 
 /**
-* escribirEscuderiaTxt  [Accion]
-* Misma logica que escuderiaBinATxt pero con firma Accion.
-* Se usa con generarArchivoTexto() para el lote inicial.
-*/
+ * escribirEscuderiaTxt  [Accion]
+ * Misma logica que escuderiaBinATxt pero con firma Accion.
+ * Se usa con generarArchivoTexto() para el lote inicial.
+ * Retorna TODO_OK o ERR_ARCH.
+ */
 int escribirEscuderiaTxt(void* archTxt, const void* dato)
 {
-    escuderiaBinATxt(dato, (FILE*)archTxt);
-    return TODO_OK;
+    return escuderiaBinATxt(dato, (FILE*)archTxt);
 }
 
 /**
-* mostrarEscuderia  [Mostrar]
-* Imprime una Escuderia formateada por pantalla.
-*/
+ * mostrarEscuderia  [Mostrar]
+ * Imprime una Escuderia formateada por pantalla.
+ */
 void mostrarEscuderia(const void* dato)
 {
     const Escuderia* e = (const Escuderia*)dato;
 
     printf("%-4u  [%s]  %-25s  %-15s  %s\n",
-           e->id,
-           e->codigo,
-           e->nombre,
-           e->pais,
+           e->id, e->codigo, e->nombre, e->pais,
            e->estado == ESTADO_ESCUDERIA_ACTIVA ? "Activa" : "Inactiva");
 }
 
 /**
  * esEscuderiaActiva  [Filter]
  * Retorna 1 si estado == ESTADO_ESCUDERIA_ACTIVA, 0 si no.
-*/
+ */
 int esEscuderiaActiva(const void* dato)
 {
     return (((const Escuderia*)dato)->estado == ESTADO_ESCUDERIA_ACTIVA);
 }
 
 /* =========================================================
-   ABM — funciones publicas
+   ABM
    ========================================================= */
 
 /**
  * altaEscuderia
- * Genera una nueva escuderia con ID autoincremental, estado
- * activo, y la agrega al final del binario.
+ * Pide ID y datos, asigna estado Activo y agrega al final del .bin.
+ * Retorna TODO_OK o ERR_ARCH.
  */
 int altaEscuderia(const char* rutaBin)
 {
     Escuderia nueva;
     FILE*     fBin;
 
-    printf("Ingresar ID:");
+    printf("Ingresar ID: ");
     scanf("%u", &nueva.id);
-
     nueva.estado = ESTADO_ESCUDERIA_ACTIVA;
 
     printf("\n--- ALTA DE ESCUDERIA (ID asignado: %u) ---\n", nueva.id);
-
     pedirDatosEscuderia(&nueva);
 
     fBin = fopen(rutaBin, "ab");
@@ -221,9 +205,10 @@ int altaEscuderia(const char* rutaBin)
 
 /**
  * bajaEscuderia
- * Busca la escuderia por ID. Si esta activa, la marca como
- * inactiva sobreescribiendo solo ese registro. Tambien registra
- * la baja en el archivo de texto de bajas.
+ * Busca la escuderia por ID. Si esta activa y el usuario confirma,
+ * la marca como inactiva y sobreescribe el registro.
+ * Registra la baja en el archivo de texto de bajas.
+ * Retorna TODO_OK, ERR_ARCH o NO_ENCONTRADO.
  */
 int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
 {
@@ -232,6 +217,7 @@ int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
     FILE*     fBajas;
     long      offset;
     unsigned  id;
+    int       confirmacion;
 
     fBin = fopen(rutaBin, "rb+");
     if (!fBin)
@@ -248,28 +234,27 @@ int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
 
     if (offset == -1L)
     {
+        fclose(fBin);
         printf("[!] Escuderia con ID %u no encontrada.\n", id);
         return NO_ENCONTRADO;
     }
 
     if (escuderia.estado == ESTADO_ESCUDERIA_INACTIVA)
     {
+        fclose(fBin);
         printf("[!] La escuderia '%s' ya se encuentra inactiva.\n", escuderia.nombre);
         return TODO_OK;
     }
 
     printf("  Escuderia encontrada: %s (%s)\n", escuderia.nombre, escuderia.codigo);
     printf("  Confirma la baja? [1] Si  [0] No: ");
+    scanf("%d", &confirmacion);
 
+    if (confirmacion != 1)
     {
-        int confirmacion;
-        scanf("%d", &confirmacion);
-
-        if (confirmacion != 1)
-        {
-            printf("[!] Baja cancelada.\n");
-            return TODO_OK;
-        }
+        fclose(fBin);
+        printf("[!] Baja cancelada.\n");
+        return TODO_OK;
     }
 
     escuderia.estado = ESTADO_ESCUDERIA_INACTIVA;
@@ -292,9 +277,9 @@ int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
 
 /**
  * modificarEscuderia
- * Busca la escuderia por ID y presenta un submenu de campos
- * (codigo, nombre, pais). El ciclo repite hasta que el usuario
- * elija 0. Al finalizar sobreescribe el registro completo.
+ * Busca la escuderia por ID, presenta un submenu de campos y repite
+ * hasta que el usuario elija 0. Sobreescribe el registro al finalizar.
+ * Retorna TODO_OK, ERR_ARCH o NO_ENCONTRADO.
  */
 int modificarEscuderia(const char* rutaBin)
 {
@@ -319,6 +304,7 @@ int modificarEscuderia(const char* rutaBin)
 
     if (offset == -1L)
     {
+        fclose(fBin);
         printf("[!] Escuderia con ID %u no encontrada.\n", id);
         return NO_ENCONTRADO;
     }
@@ -349,7 +335,7 @@ int modificarEscuderia(const char* rutaBin)
             break;
 
         case 4:
-            printf("Nuevo Estado[1/0]: ");
+            printf("Nuevo Estado [1/0]: ");
             scanf("%d", &escuderia.estado);
             break;
 
@@ -373,16 +359,20 @@ int modificarEscuderia(const char* rutaBin)
 
 /**
  * esEscuderiaValida
- * Abre el archivo binario de escuderias y busca el registro por ID.
- * Retorna 1 si existe, 0 si no.
+ * Busca el id en el .bin. Retorna 1 si existe, 0 si no.
  */
 int esEscuderiaValida(const char* rutaBin, unsigned id)
 {
-    FILE* fBin = fopen(rutaBin, "rb");
+    Escuderia esc;
+    FILE*     fBin;
+    long      offset;
+
+    fBin = fopen(rutaBin, "rb");
     if (!fBin)
         return 0;
-    Escuderia esc;
-    long offset = buscarRegistroPorId(fBin, &id, &esc, sizeof(Escuderia), sizeof(unsigned));
+
+    offset = buscarRegistroPorId(fBin, &id, &esc, sizeof(Escuderia), sizeof(unsigned));
     fclose(fBin);
+
     return (offset != -1L);
 }
