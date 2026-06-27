@@ -515,12 +515,12 @@ int carreraBinATxt(const void* dato, FILE* archTxt)
     if(!dato || !archTxt)
         return ERR_ARCH;
 
-    fprintf(archTxt, "%d%c%s%c%llu%c%d$c%d%c",
+    fprintf(archTxt, "%d%c%s%c%llu%c%d%c%d%c",
             c->id,SEP_TXT,
             c->circuito, SEP_TXT,
             c->fecha, SEP_TXT,
             c->estado, SEP_TXT,
-            c->cant_resultados);
+            c->cant_resultados, SEP_TXT);
 
     for (i = 0; i < c->cant_resultados; i++)
     {

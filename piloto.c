@@ -590,8 +590,8 @@ int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
 
     if (piloto.estado != ESTADO_ACTIVO_PILOTO)
     {
-        printf("[!] El piloto '%s' ya tiene estado '%c'. No se realizo cambio.\n",
-               piloto.nombre, piloto.estado);
+        fclose(fBin);
+        printf("[!] El piloto '%s' ya tiene estado '%c'. No se realizo cambio.\n", piloto.nombre, piloto.estado);
         return TODO_OK;
     }
 
@@ -601,17 +601,21 @@ int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
 
     fseek(fBin, offset, SEEK_SET);
     fwrite(&piloto, sizeof(Piloto), 1, fBin);
-    fclose(fBin);
 
     /* Registrar la baja en el archivo de texto */
     fBajas = fopen(rutaBajasTxt, "at");
-    if (fBajas)
+    if(!fBajas)
     {
-        fprintf(fBajas, "PILOTO|%u|%s|%c\n", piloto.id, piloto.nombre, piloto.estado);
-        fclose(fBajas);
+        fclose((fBin));
+        return ERR_ARCH;
     }
 
+    fprintf(fBajas, "PILOTO|%u|%s|%c\n", piloto.id, piloto.nombre, piloto.estado);
+
     printf("[OK] Estado del piloto '%s' actualizado a '%c'.\n",piloto.nombre, piloto.estado);
+
+    fclose(fBin);
+    fclose(fBajas);
     return TODO_OK;
 }
 
