@@ -6,9 +6,10 @@
 /* =========================================================
    Rutas de archivos del TDA Escuderia
    ========================================================= */
-#define RUTA_ESCUDERIA_BIN  "escuderias.dat"
-#define RUTA_ESCUDERIA_TXT  "escuderias.txt"
-#define RUTA_BAJAS_ESCUDERIA  "bajas_escuderias.txt"
+#define RUTA_ESCUDERIA_BIN      "escuderias.dat"
+#define RUTA_ESCUDERIA_TXT      "escuderias.txt"
+#define RUTA_ESCUDERIA_EXP_TXT  "escuderia_exportada.txt"
+#define RUTA_BAJAS_ESCUDERIA    "bajas_escuderias.txt"
 /* =========================================================
    Estados de la escuderia (campo 'estado')
    ========================================================= */
@@ -52,7 +53,7 @@ int generarArchivoEscuderiasTxt(const char* rutaTxt);
 int  trozarEscuderiaTxt(char* linea, void* reg);
 
 /* BinATxt: escribe una Escuderia en formato CSV al txt */
-void escuderiaBinATxt(const void* dato, FILE* archTxt);
+int escuderiaBinATxt(const void* dato, FILE* archTxt);
 
 /* Accion (para generarArchivoTexto): escribe Escuderia en FILE* */
 int  escribirEscuderiaTxt(void* archTxt, const void* dato);

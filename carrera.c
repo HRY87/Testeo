@@ -5,6 +5,7 @@
 #include "carrera.h"
 #include "piloto.h"
 #include "vector.h"
+#include "indice.h"
 
 static void pedirDatosBase(Carrera* c);
 static int  esPilotoDuplicado(const Carrera* c, unsigned id);
@@ -244,99 +245,10 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
     return TODO_OK;
 }
 
-/**
- * recalcularPuntosPilotos_old
- * Version anterior de recalcularPuntosPilotos (conservada como referencia).
- * Carga TODOS los pilotos y TODAS las carreras en vectores en memoria,
- * resetea los puntos a 0, recorre las carreras acumulando puntos con
- * busquedaBinariaVector() y guarda el vector actualizado en el .bin.
- * Limitacion: requiere que ambos vectores quepan en memoria simultaneamente.
- */
-//int recalcularPuntosPilotos_old(const char* rutaCarrera, const char* rutaPiloto)
-//{
-//    tVector  vPilotos, vCarreras;
-//    Carrera* carrera; //Puntero auxiliar
-//    Piloto*  piloto; //Puntero auxiliar
-//    char    *act, *fin; //Lectura byte a byte
-//    unsigned idBuscar;
-//    size_t      i;
-//
-//    /** 1. Cargar pilotos en memoria **/
-//    if(crearVector(&vPilotos, sizeof(Piloto), MAX_PILOTOS_CARRERA))
-//        return SIN_MEM;
-//
-//    if(cargarVectorDesdeBin(rutaPiloto, &vPilotos))
-//    {
-//        destruirVector(&vPilotos);
-//        return ERR_ARCH;
-//    }
-//
-//    /** 2. Seteo su valor a 0, para evitar basura **/
-//    act = (char*)vPilotos.vec;
-//    fin = act + (vPilotos.ce * vPilotos.tamElem);
-//
-//    while(act < fin)
-//    {
-//        ((Piloto*)act)->puntos_acumulados = 0;
-//        act += vPilotos.tamElem;
-//    }
-//
-//    /** 3. Cargar carreras en memoria **/
-//    if(crearVector(&vCarreras, sizeof(Carrera), MAX_CARRERAS_TEMPORADA))
-//    {
-//        destruirVector(&vPilotos);
-//        return SIN_MEM;
-//    }
-//
-//    /** Si no hay carreras aun, guardamos pilotos con puntos en 0 y salimos **/
-//    if(cargarVectorDesdeBin(rutaCarrera, &vCarreras))
-//    {
-//        guardarVectorEnBin(rutaPiloto, &vPilotos);
-//        destruirVector(&vPilotos);
-//        destruirVector(&vCarreras);
-//        return TODO_OK;
-//    }
-//
-//    /** 4. Recorrer carreras y acumulamos sus puntos **/
-//    act = (char*)vCarreras.vec;
-//    fin = act + (vCarreras.ce * vCarreras.tamElem);
-//
-//    /**5. Actualizamos sus puntos acumulados**/
-//    while(act < fin)
-//    {
-//        carrera = (Carrera*)act;
-//
-//        //Demasiadas condiciones, buscar una alternativa
-//        if(carrera->estado == ESTADO_CARRERA_ACTIVA)
-//        {
-//            for(i = 0; i < carrera->cant_resultados; i++)
-//            {
-//                if(carrera->resultados[i][COL_PUNTOS] > 0)
-//                {
-//                    idBuscar = (unsigned)carrera->resultados[i][COL_ID_PILOTO];
-//
-//                    /** El vector debe estar ordenado por id **/
-//                    piloto = (Piloto*)busquedaBinariaVector(&vPilotos,
-//                                                            &idBuscar,
-//                                                            compararUnsigned);
-//                    if(piloto)
-//                        piloto->puntos_acumulados += (unsigned)carrera->resultados[i][COL_PUNTOS];
-//                }
-//            }
-//        }
-//        act += vCarreras.tamElem;
-//    }
-//
-//    /** 6. Guardar y liberar memoria **/
-//    guardarVectorEnBin(rutaPiloto, &vPilotos);
-//    destruirVector(&vPilotos);
-//    destruirVector(&vCarreras);
-//
-//    return TODO_OK;
-//}
+
 
 /**
- * recalcularPuntosPilotos
+ * recalcularPuntosPilotosOld-Version anterior-No usa indice
  * Version optimizada: usa dos arreglos paralelos en stack
  * (ids[] y acum[]) en lugar de cargar vectores completos,
  * reduciendo el uso de memoria heap.
@@ -351,91 +263,217 @@ int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Co
  * Si no existe carreras.dat aun, pone todos los puntos en 0 y sale.
  * Retorna TODO_OK o ERR_ARCH.
  */
+//int recalcularPuntosPilotosOld(const char* rutaCarrera, const char* rutaPiloto)
+//{
+//    unsigned ids[CAP_MAX];   /* IDs de pilotos en orden de archivo */
+//    unsigned acum[CAP_MAX];  /* acumulador de puntos por piloto    */
+//    Piloto   pil;            /* buffer de lectura/escritura, stack */
+//    Carrera  car;            /* buffer de lectura, stack           */
+//    FILE*    fPil;
+//    FILE*    fCar;
+//    size_t   n = 0;
+//    size_t   i;
+//    int      j;
+//
+//    /* Paso 1: leer piloto.bin una sola vez y construir el indice ids[]/acum[] */
+//    fPil = fopen(rutaPiloto, "rb");
+//    if (!fPil)
+//        return ERR_ARCH;
+//
+//    while (n < CAP_MAX && fread(&pil, sizeof(Piloto), 1, fPil) == 1)
+//    {
+//        ids[n]  = pil.id; // guarda el ID para buscarlo en las carreras
+//        acum[n] = 0;      // inicia el acumulador en 0 antes de sumar
+//        n++;
+//    }
+//    fclose(fPil);
+//
+//    /* Paso 2: recorrer carrera.bin acumulando puntos por piloto */
+//    fCar = fopen(rutaCarrera, "rb");
+//    if (!fCar)
+//    {
+//        /* Sin carreras todavia: pone puntos en 0 en el .bin y sale */
+//        fPil = fopen(rutaPiloto, "r+b");
+//        if (!fPil)
+//            return ERR_ARCH;
+//
+//        for (i = 0; i < n; i++)
+//        {
+//            fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET); // va al registro i
+//            fread(&pil, sizeof(Piloto), 1, fPil);
+//            pil.puntos_acumulados = 0;
+//            fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET); // vuelve para sobreescribir
+//            fwrite(&pil, sizeof(Piloto), 1, fPil);
+//        }
+//        fclose(fPil);
+//        return TODO_OK;
+//    }
+//
+//    /**Archivo carrera**/
+//    while (fread(&car, sizeof(Carrera), 1, fCar) == 1)
+//    {
+//        if (car.estado != ESTADO_CARRERA_ACTIVA)
+//            continue; // ignora carreras canceladas
+//
+//        for (i = 0; i < (size_t)car.cant_resultados; i++)
+//        {
+//            if (car.resultados[i][COL_PUNTOS] <= 0)
+//                continue; // no suma si el piloto no hizo puntos
+//
+//            // busca el piloto en el indice y suma sus puntos
+//            for (j = 0; j < (int)n; j++)
+//            {
+//                if (ids[j] == (unsigned)car.resultados[i][COL_ID_PILOTO])
+//                {
+//                    acum[j] += (unsigned)car.resultados[i][COL_PUNTOS];
+//                    break;
+//                }
+//            }
+//        }
+//    }
+//    fclose(fCar);
+//
+//    /* Paso 3: actualizar puntos_acumulados en piloto.bin (read-modify-write por registro) */
+//    fPil = fopen(rutaPiloto, "r+b");
+//    if (!fPil)
+//        return ERR_ARCH;
+//
+//    for (i = 0; i < n; i++)
+//    {
+//        fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET);
+//        fread(&pil, sizeof(Piloto), 1, fPil);
+//        pil.puntos_acumulados = acum[i];           // asigna el total acumulado
+//        fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET);
+//        fwrite(&pil, sizeof(Piloto), 1, fPil);     // sobreescribe solo ese campo
+//    }
+//    fclose(fPil);
+//
+//    return TODO_OK;
+//}
+
+/* =========================================================
+   recalcularPuntosPilotos  [MODIFICADA — Funcionalidades A y D]
+
+   Uso: solo cuando hay que recomputar TODO el historial.
+   Casos: baja de carrera, modificacion de estado de carrera.
+   Para carreras nuevas usar aplicarPuntosUltimaCarrera().
+
+   Mejoras:
+   - Un solo fopen/fclose de pilotos.dat para el paso 1
+     (reseteo) y el paso 2 (acumulacion).
+   - Busqueda binaria via buscarPilotoPorIndice() en lugar
+     del for lineal sobre el array ids[].
+   - Sin arrays auxiliares en stack: lee y escribe directamente
+     en el .dat registro por registro.
+   ========================================================= */
 int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto)
 {
-    unsigned ids[CAP_MAX];   /* IDs de pilotos en orden de archivo */
-    unsigned acum[CAP_MAX];  /* acumulador de puntos por piloto    */
-    Piloto   pil;            /* buffer de lectura/escritura, stack */
-    Carrera  car;            /* buffer de lectura, stack           */
-    FILE*    fPil;
-    FILE*    fCar;
-    size_t   n = 0;
-    size_t   i;
-    int      j;
+    Piloto  pil;
+    Carrera car;
+    FILE*   fPil;
+    FILE*   fCar;
+    long    offset;
+    int     i;
 
-    /* Paso 1: leer piloto.bin una sola vez y construir el indice ids[]/acum[] */
-    fPil = fopen(rutaPiloto, "rb");
+    /* Paso 1: resetear puntos de todos los pilotos a 0 */
+    fPil = fopen(rutaPiloto, "rb+");
     if (!fPil)
         return ERR_ARCH;
 
-    while (n < CAP_MAX && fread(&pil, sizeof(Piloto), 1, fPil) == 1)
+    offset = 0L;
+    while (fread(&pil, sizeof(Piloto), 1, fPil) == 1)
     {
-        ids[n]  = pil.id; // guarda el ID para buscarlo en las carreras
-        acum[n] = 0;      // inicia el acumulador en 0 antes de sumar
-        n++;
+        pil.puntos_acumulados = 0;
+        fseek(fPil, offset, SEEK_SET);
+        fwrite(&pil, sizeof(Piloto), 1, fPil);
+        fseek(fPil, 0L, SEEK_CUR);
+        offset += (long)sizeof(Piloto);
     }
-    fclose(fPil);
 
-    /* Paso 2: recorrer carrera.bin acumulando puntos por piloto */
+    /* Paso 2: acumular desde el historial completo de carreras */
     fCar = fopen(rutaCarrera, "rb");
     if (!fCar)
     {
-        /* Sin carreras todavia: pone puntos en 0 en el .bin y sale */
-        fPil = fopen(rutaPiloto, "r+b");
-        if (!fPil)
-            return ERR_ARCH;
-
-        for (i = 0; i < n; i++)
-        {
-            fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET); // va al registro i
-            fread(&pil, sizeof(Piloto), 1, fPil);
-            pil.puntos_acumulados = 0;
-            fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET); // vuelve para sobreescribir
-            fwrite(&pil, sizeof(Piloto), 1, fPil);
-        }
+        /* Sin historial: pilotos ya quedaron en 0, correcto */
         fclose(fPil);
         return TODO_OK;
     }
 
-    /**Archivo carrera**/
     while (fread(&car, sizeof(Carrera), 1, fCar) == 1)
     {
         if (car.estado != ESTADO_CARRERA_ACTIVA)
-            continue; // ignora carreras canceladas
+            continue;
 
-        for (i = 0; i < (size_t)car.cant_resultados; i++)
+        for (i = 0; i < car.cant_resultados; i++)
         {
             if (car.resultados[i][COL_PUNTOS] <= 0)
-                continue; // no suma si el piloto no hizo puntos
+                continue;
 
-            // busca el piloto en el indice y suma sus puntos
-            for (j = 0; j < (int)n; j++)
-            {
-                if (ids[j] == (unsigned)car.resultados[i][COL_ID_PILOTO])
-                {
-                    acum[j] += (unsigned)car.resultados[i][COL_PUNTOS];
-                    break;
-                }
-            }
+            offset = buscarPilotoPorIndice(RUTA_INDICE_PILOTO, fPil,(unsigned)car.resultados[i][COL_ID_PILOTO],&pil);
+            if (offset == -1L)
+                continue;
+
+            pil.puntos_acumulados += (unsigned)car.resultados[i][COL_PUNTOS];
+            fseek(fPil, offset, SEEK_SET);
+            fwrite(&pil, sizeof(Piloto), 1, fPil);
         }
     }
+
+    fclose(fCar);
+    fclose(fPil);
+    return TODO_OK;
+}
+
+/**
+   aplicarPuntosUltimaCarrera  [NUEVA — Funcionalidad D]
+
+   Lee el ultimo registro de carreras.dat (la carrera recien
+   guardada) y suma sus puntos a cada piloto afectado usando
+   buscarPilotoPorIndice() (busqueda binaria sobre .idx).
+   Retorna TODO_OK o ERR_ARCH.
+ **/
+int aplicarPuntosUltimaCarrera(const char* rutaCarrera, const char* rutaPiloto)
+{
+    Carrera car;
+    Piloto  pil;
+    FILE*   fCar;
+    FILE*   fPil;
+    long    offset;
+    int     i;
+
+    fCar = fopen(rutaCarrera, "rb");
+    if (!fCar)
+        return ERR_ARCH;
+
+    /* Posiciona en el ultimo registro sin recorrer el archivo */
+    fseek(fCar, -(long)sizeof(Carrera), SEEK_END);
+    fread(&car, sizeof(Carrera), 1, fCar);
     fclose(fCar);
 
-    /* Paso 3: actualizar puntos_acumulados en piloto.bin (read-modify-write por registro) */
-    fPil = fopen(rutaPiloto, "r+b");
+    if (car.estado != ESTADO_CARRERA_ACTIVA)
+        return TODO_OK; /* carrera cancelada: nada que sumar */
+
+    fPil = fopen(rutaPiloto, "rb+");
     if (!fPil)
         return ERR_ARCH;
 
-    for (i = 0; i < n; i++)
+    for (i = 0; i < car.cant_resultados; i++)
     {
-        fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET);
-        fread(&pil, sizeof(Piloto), 1, fPil);
-        pil.puntos_acumulados = acum[i];           // asigna el total acumulado
-        fseek(fPil, (long)(i * sizeof(Piloto)), SEEK_SET);
-        fwrite(&pil, sizeof(Piloto), 1, fPil);     // sobreescribe solo ese campo
-    }
-    fclose(fPil);
+        if (car.resultados[i][COL_PUNTOS] <= 0)
+            continue;
 
+        offset = buscarPilotoPorIndice(RUTA_INDICE_PILOTO, fPil,
+                                       (unsigned)car.resultados[i][COL_ID_PILOTO],
+                                       &pil);
+        if (offset == -1L)
+            continue;
+
+        pil.puntos_acumulados += (unsigned)car.resultados[i][COL_PUNTOS];
+        fseek(fPil, offset, SEEK_SET);
+        fwrite(&pil, sizeof(Piloto), 1, fPil);
+    }
+
+    fclose(fPil);
     return TODO_OK;
 }
 
@@ -463,7 +501,39 @@ int generarIdCarrera(FILE* fCarrera)
     return (ultima.id + 1);
 }
 
+/**
+* carreraBinATxt  [BinATxt]
+* Escribe una Carrera en formato .txt en el archivo de texto.
+* Cabecera: id,circuito,fecha,estado,cant_resultados,
+* seguida de los pares idPiloto:puntos separados por '-'.
+*/
+int carreraBinATxt(const void* dato, FILE* archTxt)
+{
+    const Carrera* c = (const Carrera*)dato;
+    int i;
 
+    if(!dato || !archTxt)
+        return ERR_ARCH;
+
+    fprintf(archTxt, "%d%c%s%c%llu%c%d$c%d%c",
+            c->id,SEP_TXT,
+            c->circuito, SEP_TXT,
+            c->fecha, SEP_TXT,
+            c->estado, SEP_TXT,
+            c->cant_resultados);
+
+    for (i = 0; i < c->cant_resultados; i++)
+    {
+        fprintf(archTxt, "%d:%d", c->resultados[i][COL_ID_PILOTO],c->resultados[i][COL_PUNTOS]);
+
+        if (i < c->cant_resultados - 1)
+            fprintf(archTxt, "-"); /* separador entre resultados */
+    }
+
+    fprintf(archTxt, "\n");
+
+    return TODO_OK;
+}
 /**
  * mostrarCarrera  [Mostrar]
  * Imprime el encabezado de la carrera (ID, circuito, fecha, estado)
@@ -566,11 +636,11 @@ int bajaCarrera(const char* rutaBin, const char* rutaBajasTxt)
     FILE*    fBin;
     FILE*    fBajas;
     long     offset;
-    unsigned id;
+    int id;
     unsigned dia, mes, anio;
+    int      confirmacion;
 
     fBin = fopen(rutaBin, "rb+");
-
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de carreras.\n");
@@ -579,42 +649,40 @@ int bajaCarrera(const char* rutaBin, const char* rutaBajasTxt)
 
     printf("\n--- BAJA DE CARRERA ---\n");
     printf("ID de la carrera: ");
-    scanf("%u", &id);
+    scanf("%d", &id);
 
-    offset = buscarRegistroPorId(fBin, (unsigned)id, &carrera, sizeof(Carrera));
+    offset = buscarRegistroPorId(fBin, &id, &carrera, sizeof(Carrera), sizeof(int));
 
     if (offset == -1L)
     {
+        fclose(fBin);
         printf("[!] Carrera con ID %u no encontrada.\n", id);
         return NO_ENCONTRADO;
     }
 
     if (carrera.estado == ESTADO_CARRERA_INACTIVA)
     {
+        fclose(fBin);
         printf("[!] La carrera '%s' ya se encuentra cancelada.\n", carrera.circuito);
         return TODO_OK;
     }
 
-    anio = (unsigned)(carrera.fecha / 10000);
-    mes  = (unsigned)(carrera.fecha / 100 % 100);
     dia  = (unsigned)(carrera.fecha % 100);
+    mes  = (unsigned)(carrera.fecha / 100 % 100);
+    anio = (unsigned)(carrera.fecha / 10000);
 
-    printf("  Carrera encontrada: %s  (%02u/%02u/%04u)\n",carrera.circuito, dia, mes, anio);
+    printf("  Carrera encontrada: %s  (%02u/%02u/%04u)\n", carrera.circuito, dia, mes, anio);
     printf("  Confirma la baja? [1] Si  [0] No: ");
+    scanf("%d", &confirmacion);
 
+    if (confirmacion != 1)
     {
-        int confirmacion;
-        scanf("%d", &confirmacion);
-
-        if (confirmacion != 1)
-        {
-            printf("[!] Baja cancelada.\n");
-            return TODO_OK;
-        }
+        fclose(fBin);
+        printf("[!] Baja cancelada.\n");
+        return TODO_OK;
     }
 
     carrera.estado = ESTADO_CARRERA_INACTIVA;
-
 
     fseek(fBin, offset, SEEK_SET);
     fwrite(&carrera, sizeof(Carrera), 1, fBin);
@@ -623,10 +691,13 @@ int bajaCarrera(const char* rutaBin, const char* rutaBajasTxt)
     fBajas = fopen(rutaBajasTxt, "at");
     if (fBajas)
     {
-        fprintf(fBajas, "CARRERA|%d|%s|%llu|CANCELADA\n",
-                carrera.id, carrera.circuito, carrera.fecha);
+        fprintf(fBajas, "CARRERA|%d|%s|%llu|CANCELADA\n",carrera.id, carrera.circuito, carrera.fecha);
         fclose(fBajas);
     }
+
+    /* La carrera quedo inactiva: sus puntos ya no cuentan.
+       Se recalcula el historial completo para corregir los acumulados. */
+    recalcularPuntosPilotos(rutaBin, RUTA_PILOTO_BIN);
 
     printf("[OK] Carrera '%s' dada de baja.\n", carrera.circuito);
     return TODO_OK;
@@ -646,13 +717,13 @@ int modificarCarrera(const char* rutaBin)
     Carrera            carrera;
     FILE*              fBin;
     long               offset;
-    unsigned           id;
+    int                id;
     int                campo;
     unsigned long long fechaNueva;
-    int nuevoEstado;
+    int                nuevoEstado;
+    int                estadoAnterior;
 
     fBin = fopen(rutaBin, "rb+");
-
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de carreras.\n");
@@ -661,15 +732,18 @@ int modificarCarrera(const char* rutaBin)
 
     printf("\n--- MODIFICAR CARRERA ---\n");
     printf("ID de la carrera: ");
-    scanf("%u", &id);
+    scanf("%d", &id);
 
-    offset = buscarRegistroPorId(fBin, id, &carrera, sizeof(Carrera));
+    offset = buscarRegistroPorId(fBin, &id, &carrera, sizeof(Carrera), sizeof(int));
 
     if (offset == -1L)
     {
+        fclose(fBin);
         printf("[!] Carrera con ID %u no encontrada.\n", id);
         return NO_ENCONTRADO;
     }
+
+    estadoAnterior = carrera.estado;
 
     mostrarCamposCarrera(&carrera);
     printf("Campo a modificar: ");
@@ -697,15 +771,12 @@ int modificarCarrera(const char* rutaBin)
             break;
 
         case 3:
-        {
-
             printf("  [1] Activa  [0] Cancelada: ");
             scanf("%d", &nuevoEstado);
             carrera.estado = (nuevoEstado == 1)
                              ? ESTADO_CARRERA_ACTIVA
                              : ESTADO_CARRERA_INACTIVA;
             break;
-        }
 
         default:
             printf("[!] Campo invalido.\n");
@@ -720,6 +791,11 @@ int modificarCarrera(const char* rutaBin)
     fseek(fBin, offset, SEEK_SET);
     fwrite(&carrera, sizeof(Carrera), 1, fBin);
     fclose(fBin);
+
+    /* Si el estado cambio, los puntos acumulados del historial
+       ya no son correctos: hay que recomputar desde cero. */
+    if (carrera.estado != estadoAnterior)
+        recalcularPuntosPilotos(rutaBin, RUTA_PILOTO_BIN);
 
     printf("[OK] Carrera ID %d modificada correctamente.\n", carrera.id);
     return TODO_OK;

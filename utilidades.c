@@ -222,13 +222,13 @@ int escribirPilotoTxt(void* accion, const void* dato)
     if(!txt || !p)
         return ERR_ARCH;
 
-    fprintf(txt, "%u,%s,%s,%u,%u,%c,%llu\n",
-            p->id,
-            p->nombre,
-            p->nacionalidad,
-            p->id_escuderia,
-            p->puntos_acumulados,
-            p->estado,
+    fprintf(txt, "%u%c%s%c%s%c%u%c%u%c%c%c%llu\n",
+            p->id, SEP_TXT,
+            p->nombre, SEP_TXT,
+            p->nacionalidad, SEP_TXT,
+            p->id_escuderia, SEP_TXT,
+            p->puntos_acumulados, SEP_TXT,
+            p->estado, SEP_TXT,
             p->fechaNacimiento);
 
     return TODO_OK;
@@ -244,16 +244,14 @@ int escribirPilotoTxt(void* accion, const void* dato)
  * archivos, o SIN_MEM si falla malloc.
  */
 /* Lee un .txt linea por linea, parsea cada una a registro binario con 'txtABin' y lo escribe en el .bin */
-int convertirArchivoTxtABin(const char* rutaTxt,
-                            const char* rutaBin,
-                            size_t tamElem,
-                            TxtABin txtABin)
+int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin trozarLinea)
 {
-    char*  linea;
-    void*  reg;
-    int    resp;
-    FILE*  fTxt;
-    FILE*  fBin;
+    char*  linea = NULL;
+    void*  reg = NULL;
+    int    resp = TODO_OK;
+    FILE*  fTxt = NULL;
+    FILE*  fBin = NULL;
+    size_t registrosExportados = 0;
 
     fTxt = fopen(rutaTxt, "rt");
     if (!fTxt)
@@ -278,11 +276,16 @@ int convertirArchivoTxtABin(const char* rutaTxt,
         return SIN_MEM;
     }
 
-    while (fgets(linea, TAM_LINEA, fTxt))
+    while(fgets(linea, TAM_LINEA, fTxt))
     {
-        resp = txtABin(linea, reg);        /** Parsea la linea al struct del TDA */
-        if (resp == TODO_OK)
-            fwrite(reg, tamElem, 1, fBin); /** Solo escribe si el parseo fue exitoso */
+        resp = trozarLinea(linea, reg);/** Parsea la linea al struct del TDA */
+
+        if (resp == TODO_OK)/** Solo escribe si el parseo fue exitoso */
+        {
+            fwrite(reg, tamElem, 1, fBin);
+            registrosExportados++;
+        }
+
         /** ERR_LINEA: la linea se omite silenciosamente */
     }
 
@@ -291,6 +294,57 @@ int convertirArchivoTxtABin(const char* rutaTxt,
     fclose(fTxt);
     fclose(fBin);
 
+    printf("[OK] Se exportaron %llu registros al archivo %s.\n", registrosExportados, rutaBin);
+
+    return TODO_OK;
+}
+
+int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tamElem, BinATxt escribirRegistro)
+{
+    FILE* fBin = NULL;
+    FILE* fTxt = NULL;
+    void* reg = NULL;
+    size_t registrosExportados = 0;
+
+    fBin = fopen(rutaBin, "rb");
+
+    if(!fBin)
+    {
+        return ERR_ARCH;
+    }
+
+    fTxt = fopen(rutaTxt, "wt");
+
+    if(!fTxt)
+    {
+        fclose(fBin);
+        return ERR_ARCH;
+    }
+
+    reg = malloc(tamElem);
+
+    if(!reg)
+    {
+        fclose(fBin);
+        fclose(fTxt);
+        return ERR_MEM;
+    }
+
+    fread(reg, tamElem, 1, fBin);
+    while(!feof(fBin))
+    {
+        if(escribirRegistro(reg, fTxt) == TODO_OK)
+            registrosExportados++;
+
+        fread(reg, tamElem, 1, fBin);
+    }
+
+    free(reg);
+
+    fclose(fBin);
+    fclose(fTxt);
+
+    printf("[OK] Se exportaron %llu registros al archivo %s.\n", registrosExportados, rutaTxt);
     return TODO_OK;
 }
 
@@ -304,23 +358,41 @@ int convertirArchivoTxtABin(const char* rutaTxt,
  * queda posicionado despues del registro encontrado (o al final).
  */
 
-long buscarRegistroPorId(FILE* fBin, unsigned id, void* reg, size_t tamElem)
+long buscarRegistroPorId(FILE* fBin, const void* clave, void* reg, size_t tamElem, size_t tamClave)
 {
-    long     offset;
-    unsigned idLeido;
+    long offset = 0L;
 
     rewind(fBin); /** Posiciona al inicio para garantizar recorrido completo */
-    offset = 0L;
 
-    while (fread(reg, tamElem, 1, fBin) == 1)
+    while(fread(reg, tamElem, 1, fBin) == 1)
     {
-        idLeido = *(unsigned*)reg; /** El primer campo de cualquier TDA es el id (unsigned) */
 
-        if (idLeido == id)
-            return offset; /** Devuelve la posicion donde empieza ese registro */
+        if(memcmp(reg, clave, tamClave) == 0)
+            return offset;
 
         offset += (long)tamElem;
     }
 
     return -1L; /** No encontrado */
+}
+
+/**
+ * archivoExiste
+ *Si el usuario sale del programa con la opcion 0, genera un bug
+ *Como no se borra los archivo que se estaban usando y tampoco se actualizan los archivos de texto
+ *Hay registros basura, de operaciones anteriores que no se ven reflejados
+ *Por lo tanto, si los archivos existen se usaran los datos que tiene y los que se agregen
+ *Para evitar tener tantos archivos, la opcion 0 actualizara los de texto con los archivos binarios
+ Nota: no me gusta mucha hacer un fopen para validar si existe o no un archivo, pero es la opcion optima
+ */
+int archivoExiste(const char* ruta)
+{
+    FILE* f = fopen(ruta, "rb");
+
+    if(f)
+    {
+        fclose(f);
+        return 1;
+    }
+    return 0;
 }

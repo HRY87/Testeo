@@ -1,3 +1,4 @@
+#define __USE_MINGW_ANSI_STDIO 1
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -7,9 +8,11 @@
 #include "estadisticas.h"
 #include "escuderia.h"
 #include "puntos.h"
+#include "indice.h"
 
 static void inicializarSistema(Puntos* pts);
-static int mostrarMenu(void);
+static void finalizarSesion(void);
+static int  mostrarMenu(void);
 static void menuEstadisticas(void);
 static void menuCarrera(Puntos* pts);
 static void menuPilotosPorEscuderia(void);
@@ -31,7 +34,6 @@ int main()
         switch (opcion)
         {
         case 1:
-            //recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
             listarPilotos(RUTA_PILOTO_BIN);
             break;
         case 2:
@@ -51,10 +53,13 @@ int main()
             printf("        EXPORTANDO DATOS DEL CAMPEONATO      \n");
             printf("=============================================\n");
             printf("[*] Exportando pilotos...\n");
-            exportarPilotosTxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT);
+            convertirArchivoBinATxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT, sizeof(Piloto), pilotoBinATxt);
+
+            printf("[*] Exportando escuderias...\n");
+            convertirArchivoBinATxt(RUTA_ESCUDERIA_BIN, RUTA_ESCUDERIA_EXP_TXT, sizeof(Escuderia), escuderiaBinATxt);
 
             printf("[*] Exportando historial de carreras...\n");
-            exportarCarrerasTxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT);
+            convertirArchivoBinATxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT, sizeof(Carrera), carreraBinATxt);
 
             printf("\n[OK] Exportacion completa de la temporada.\n");
             printf("=============================================\n\n");
@@ -75,6 +80,7 @@ int main()
         opcion = mostrarMenu();
     }
 
+    finalizarSesion();
     destruirPuntos(&vPuntos);
     printf("Hasta luego.\n");
     return 0;
@@ -84,9 +90,14 @@ int main()
  * inicializarSistema
  * Punto de arranque del sistema. Realiza:
  *   1. srand() con time(NULL) para la simulacion aleatoria.
- *   2. Genera pilotos.txt con el lote inicial y lo convierte a .bin.
- *   3. Genera escuderias.txt y lo convierte a escuderias.dat.
- *   4. Carga la tabla de puntos desde puntos.txt en la struct Puntos.
+ *   2. Genera pilotos.txt SOLO si no existe (lote inicial o
+ *      el que quedo persistido al salir con la opcion 0), y
+ *      siempre reconstruye el .bin y el .idx a partir de el.
+ *   3. Idem con escuderia.
+ *   4. Carga la tabla de puntos desde puntos.txt.
+ *   5. Recalcula los puntos de los pilotos contra el historial
+ *      de carreras (carrera.dat puede seguir vivo de una sesion
+ *      anterior cerrada con la opcion 0).
  */
 static void inicializarSistema(Puntos* pts)
 {
@@ -94,31 +105,36 @@ static void inicializarSistema(Puntos* pts)
 
     srand((unsigned)time(NULL));
 
-    /* Pilotos: txt -> bin */
-    if (generarArchivoPilotosTxt(RUTA_PILOTO_TXT) == TODO_OK)
+    /* Pilotos: solo se genera el lote si el .txt no existe todavia */
+    if (!archivoExiste(RUTA_PILOTO_TXT))
     {
-        printf("[OK] Generado '%s'\n", RUTA_PILOTO_TXT);
+        generarArchivoPilotosTxt(RUTA_PILOTO_TXT);
+        printf("[OK] Lote inicial generado en '%s'\n", RUTA_PILOTO_TXT);
+    }
 
-        if (cargarArchivoPilotos(RUTA_PILOTO_TXT, RUTA_PILOTO_BIN) > 0)
-            printf("[OK] Generado '%s'\n", RUTA_PILOTO_BIN);
+    if (convertirArchivoTxtABin(RUTA_PILOTO_TXT, RUTA_PILOTO_BIN, sizeof(Piloto), trozarPilotoTxt) == TODO_OK)
+    {
+        printf("[OK] Generado '%s'\n", RUTA_PILOTO_BIN);
+
+        if (construirIndicePilotos(RUTA_PILOTO_BIN, RUTA_INDICE_PILOTO) == TODO_OK)
+            printf("[OK] Indice generado '%s'\n", RUTA_INDICE_PILOTO);
         else
-            printf("[!] Error al generar '%s'\n", RUTA_PILOTO_BIN);
+            printf("[!] Error al generar el indice de pilotos\n");
     }
     else
-        printf("[!] Error al generar '%s'\n", RUTA_PILOTO_TXT);
+        printf("[!] Error al generar '%s'\n", RUTA_PILOTO_BIN);
 
-    /* Escuderias: txt -> bin */
-    if (generarArchivoEscuderiasTxt(RUTA_ESCUDERIA_TXT) == TODO_OK)
+    /* Escuderias: mismo criterio */
+    if (!archivoExiste(RUTA_ESCUDERIA_TXT))
     {
-        printf("[OK] Generado '%s'\n", RUTA_ESCUDERIA_TXT);
-
-        if (convertirArchivoTxtABin(RUTA_ESCUDERIA_TXT, RUTA_ESCUDERIA_BIN, sizeof(Escuderia), trozarEscuderiaTxt) == TODO_OK)
-            printf("[OK] Generado '%s'\n", RUTA_ESCUDERIA_BIN);
-        else
-            printf("[!] Error al generar '%s'\n", RUTA_ESCUDERIA_BIN);
+        generarArchivoEscuderiasTxt(RUTA_ESCUDERIA_TXT);
+        printf("[OK] Lote inicial generado en '%s'\n", RUTA_ESCUDERIA_TXT);
     }
+
+    if (convertirArchivoTxtABin(RUTA_ESCUDERIA_TXT, RUTA_ESCUDERIA_BIN,sizeof(Escuderia), trozarEscuderiaTxt) == TODO_OK)
+        printf("[OK] Generado '%s'\n", RUTA_ESCUDERIA_BIN);
     else
-        printf("[!] Error al generar '%s'\n", RUTA_ESCUDERIA_TXT);
+        printf("[!] Error al generar '%s'\n", RUTA_ESCUDERIA_BIN);
 
     /* Puntos: carga tabla desde .txt (la genera si no existe) */
     if (cargarConfigPuntos(RUTA_PUNTOS_TXT, pts) == TODO_OK)
@@ -126,7 +142,30 @@ static void inicializarSistema(Puntos* pts)
     else
         printf("[!] Error al cargar la tabla de puntos\n");
 
+    /* Si carrera.dat sigue vivo de una sesion anterior (salida con 0),
+       los puntos del .bin recien generado deben reflejar ese historial */
+    recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
+
     printf("----------------------------\n\n");
+}
+
+/**
+ * finalizarSesion
+ * Se ejecuta al salir con la opcion 0 (salida normal, NO finaliza
+ * la temporada). Persiste el estado actual de pilotos y escuderias
+ * en sus .txt de origen y elimina los .bin/.idx, para que la
+ * proxima ejecucion los reconstruya desde el texto actualizado.
+ * carrera.dat NO se borra aca: la temporada sigue activa hasta
+ * que el usuario elija la opcion 7.
+ */
+static void finalizarSesion(void)
+{
+    convertirArchivoBinATxt(RUTA_PILOTO_BIN, RUTA_PILOTO_TXT, sizeof(Piloto), pilotoBinATxt);
+    remove(RUTA_PILOTO_BIN);
+    remove(RUTA_INDICE_PILOTO);
+
+    convertirArchivoBinATxt(RUTA_ESCUDERIA_BIN, RUTA_ESCUDERIA_TXT, sizeof(Escuderia), escuderiaBinATxt);
+    remove(RUTA_ESCUDERIA_BIN);
 }
 
 /**
@@ -156,7 +195,6 @@ static int mostrarMenu(void)
     return opcion;
 }
 
-
 /**
  * menuEstadisticas
  * Submenú de estadisticas. Segun la opcion:
@@ -164,7 +202,6 @@ static int mostrarMenu(void)
  *        y muestra el resultado con mostrarEstadisticasPiloto().
  *   2 -> pide ID de carrera y llama a mejorYPeorPosicion().
  */
-/* Submenú de estadisticas: calcula y muestra stats de un piloto o el 1ro/ultimo de una carrera */
 static void menuEstadisticas(void)
 {
     int subopcion;
@@ -192,12 +229,12 @@ static void menuEstadisticas(void)
             printf("[!] Error al abrir el archivo.\n");
             break;
         }
-        mostrarEstadisticasPiloto(&stats); // imprime el resumen calculado
+        mostrarEstadisticasPiloto(&stats);
         break;
     case 2:
         printf("Ingrese ID de la carrera: ");
         scanf("%d", &id_carrera);
-        mejorYPeorPosicion(RUTA_CARRERA_BIN, id_carrera); // muestra el 1ro y ultimo de esa carrera
+        mejorYPeorPosicion(RUTA_CARRERA_BIN, id_carrera);
         break;
     case 0:
         break;
@@ -212,11 +249,9 @@ static void menuEstadisticas(void)
  * Submenú de registro de carreras. Segun la opcion:
  *   1 -> simulacion aleatoria con Fisher-Yates.
  *   2 -> ingreso manual de posiciones.
- * En ambos casos, al terminar recalcula los puntos de todos los
- * pilotos y muestra el historial de carreras actualizado.
+ * En ambos casos, al terminar aplica los puntos de la ultima
+ * carrera y muestra el historial actualizado.
  */
-/* Submenú para registrar una carrera: permite elegir entre simulacion aleatoria o ingreso manual.
-   Tras registrar, recalcula los puntos de todos los pilotos y muestra el historial. */
 static void menuCarrera(Puntos* pts)
 {
     int op;
@@ -232,21 +267,23 @@ static void menuCarrera(Puntos* pts)
     printf("  Opcion: ");
     scanf("%d", &op);
 
-    switch(op)
+    switch (op)
     {
     case 1:
         registrarCarreraAleatoria(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, compararUnsigned, pts);
-        recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN); // actualiza puntos tras la carrera
+        aplicarPuntosUltimaCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
         mostrarArchivoBinario(RUTA_CARRERA_BIN, &carrera, sizeof(Carrera), mostrarCarrera);
         break;
 
     case 2:
         registrarCarreraManual(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, compararUnsigned, pts);
-        recalcularPuntosPilotos(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
+        aplicarPuntosUltimaCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
         mostrarArchivoBinario(RUTA_CARRERA_BIN, &carrera, sizeof(Carrera), mostrarCarrera);
         break;
+
     case 0:
         break;
+
     default:
         printf("[!] Opcion invalida.\n");
         break;
@@ -258,7 +295,6 @@ static void menuCarrera(Puntos* pts)
  * Lista todas las escuderias del .bin, pide al usuario un ID
  * y llama a listarPilotosPorEscuderia() para mostrar sus pilotos.
  */
-/* Lista todas las escuderias disponibles, pide al usuario que elija una y muestra sus pilotos */
 static void menuPilotosPorEscuderia(void)
 {
     Escuderia esc;
@@ -274,7 +310,7 @@ static void menuPilotosPorEscuderia(void)
 
     printf("\n--- Escuderias disponibles ---\n");
     while (fread(&esc, sizeof(Escuderia), 1, fEsc) == 1)
-        mostrarEscuderia(&esc); // imprime cada escuderia del .bin
+        mostrarEscuderia(&esc);
     fclose(fEsc);
 
     printf("\nIngrese ID de escuderia (0 para volver): ");
@@ -287,16 +323,13 @@ static void menuPilotosPorEscuderia(void)
 }
 
 /**
- * FinalizarTemporada
- * Cierra la temporada actual:
- *   1. Pide nombre para el archivo de pilotos y renombra pilotos.txt.
- *   2. Pide nombre para el archivo de carreras y renombra carreras.txt.
- *   3. Elimina los tres .bin para que la proxima ejecucion arranque limpia.
- * Usa aritmetica de punteros para concatenar la extension ".txt"
- * sin funciones de cadena de biblioteca.
+ * finalizarTemporada
+ * Cierra la temporada actual (opcion 7):
+ *   1. Pide nombre para el archivo de pilotos y lo exporta/renombra.
+ *   2. Pide nombre para el archivo de carreras y lo exporta/renombra.
+ *   3. Elimina los .bin/.idx para que la proxima temporada arranque
+ *      completamente limpia (incluyendo carrera.dat).
  */
-/* Cierra la temporada: renombra los .txt de pilotos y carreras con el nombre elegido
-   y borra los .bin para que la proxima ejecucion arranque limpia */
 static void finalizarTemporada(void)
 {
     char  nomarchivopil[TAM_LINEA];
@@ -315,7 +348,7 @@ static void finalizarTemporada(void)
     *pos++ = 't';
     *pos = '\0';
 
-    exportarPilotosTxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT); /* genera el .txt desde el .bin */
+    convertirArchivoBinATxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT, sizeof(Piloto), pilotoBinATxt);
     if (rename(RUTA_PILOTO_EXP_TXT, nomarchivopil) == 0)
         printf("[OK] Archivo de pilotos guardado como '%s'\n", nomarchivopil);
     else
@@ -333,16 +366,17 @@ static void finalizarTemporada(void)
     *pos++ = 't';
     *pos = '\0';
 
-    exportarCarrerasTxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT); /* genera el .txt desde el .bin */
+    convertirArchivoBinATxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT, sizeof(Carrera), carreraBinATxt);
     if (rename(RUTA_CARRERA_EXP_TXT, nomarchivocar) == 0)
         printf("[OK] Archivo de carreras guardado como '%s'\n", nomarchivocar);
     else
         printf("[!] Error al guardar el archivo de carreras\n");
 
-    /* Elimina los .bin para que la proxima temporada arranque limpia */
+    /* Temporada cerrada: arranca todo de cero la proxima vez */
     remove(RUTA_CARRERA_BIN);
     remove(RUTA_PILOTO_BIN);
     remove(RUTA_ESCUDERIA_BIN);
+    remove(RUTA_INDICE_PILOTO);
     printf("\n[OK] Temporada finalizada.\n");
 }
 

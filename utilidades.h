@@ -22,7 +22,7 @@ typedef int(*Comparar)(const void* d1, const void* d2);
 typedef void(*Mostrar)(const void* d);
 typedef int (*Accion)(void* accion, const void* dato);
 /* Convierte un registro binario a texto (escribe en FILE*) */
-typedef void(*BinATxt)(const void* dato, FILE* archTxt);
+typedef int(*BinATxt)(const void* dato, FILE* archTxt);
 /* Convierte una linea de texto en un registro binario.
    Retorna TODO_OK si la linea es valida, ERR_LINEA si no. */
 typedef int(*TxtABin)(char* linea, void* registro);
@@ -39,6 +39,7 @@ int mostrarArchivoBinario(const char* rutaBin, void* dato, size_t tamElem, Mostr
 
 /* Convierte un .txt a .bin usando la funcion txtABin del TDA */
 int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin txtABin);
+int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tamElem, BinATxt escribirRegistro);
 
 /**Funciones para fecha**/
 int diasPorMes(unsigned mes, unsigned anio);
@@ -49,6 +50,8 @@ int compararUnsigned(const void* a, const void* b);
 int escribirPilotoTxt(void* accion, const void* dato);
 
 /**Recibe solo el FILE* (usar rewind al inicio)**/
-long buscarRegistroPorId(FILE* fBin, unsigned id, void* reg, size_t tamElem);
+long buscarRegistroPorId(FILE* fBin, const void* clave, void* reg, size_t tamElem, size_t tamClave);
 
+/**Validador si un archivo existe**/
+int archivoExiste(const char* ruta);
 #endif // UTILIDADES_H_INCLUDED

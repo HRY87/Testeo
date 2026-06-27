@@ -1,5 +1,6 @@
 #define __USE_MINGW_ANSI_STDIO 1
 #include <stdio.h>
+#include <string.h>
 #include "piloto.h"
 #include "escuderia.h"
 #include "utilidades.h"
@@ -220,7 +221,60 @@ int cmp_desc(const void* a, const void* b)
     if (rb->puntos < ra->puntos) return -1;
     return 0;
 }
+/**
+* trozarPilotoTxt  [TxtABin]
+* Parsea una linea con el formato:
+*   id,nombre,nacionalidad,id_escuderia,puntos_acumulados,estado,fechaNacimiento
+* Retorna TODO_OK si la linea es valida, ERR_LINEA si no.
+*/
+int trozarPilotoTxt(char* linea, void* reg)
+{
+    Piloto* p   = (Piloto*)reg;
+    char*   act = strchr(linea, '\n'); // busca el fin de linea para truncar
 
+    if(!act)
+        return ERR_LINEA;
+
+    *act = '\0'; // elimina el \n para que strrchr no lo incluya en los campos
+
+    /* Parseo de atras hacia adelante: cada strrchr encuentra el ultimo
+       separador, lee el campo a su derecha y lo "corta" poniendo \0 */
+
+    /* Fecha de nacimiento */
+    act = strrchr(linea, SEP_TXT);
+    sscanf(act + 1, "%llu", &p->fechaNacimiento);
+    *act = '\0';
+
+    /* Estado (char, no int) */
+    act = strrchr(linea, SEP_TXT);
+    sscanf(act + 1, "%c", &p->estado);
+    *act = '\0';
+
+    /* Puntos acumulados */
+    act = strrchr(linea, SEP_TXT);
+    sscanf(act + 1, "%u", &p->puntos_acumulados);
+    *act = '\0';
+
+    /* ID escuderia */
+    act = strrchr(linea, SEP_TXT);
+    sscanf(act + 1, "%u", &p->id_escuderia);
+    *act = '\0';
+
+    /* Nacionalidad */
+    act = strrchr(linea, SEP_TXT);
+    copiarCadena(p->nacionalidad, act + 1, TAM_NACIONALIDAD);
+    *act = '\0';
+
+    /* Nombre */
+    act = strrchr(linea, SEP_TXT);
+    copiarCadena(p->nombre, act + 1, TAM_NOMBRE_PILOTO);
+    *act = '\0';
+
+    /* Id: lo que queda al inicio */
+    sscanf(linea, "%u", &p->id);
+
+    return TODO_OK;
+}
 /**
  * RankingPiloto
  * Genera y muestra el ranking de pilotos activos ordenado
@@ -347,7 +401,29 @@ int extraerIdPuntos(void* dest, const void* orig)
     return TODO_OK;
 }
 
+/** pilotoBinATxt  [BinATxt]
+* Escribe un Piloto en formato .txt en el archivo de texto.
+* Mismos campos y orden que cargarArchivoPilotos espera para
+* poder reconstruir el .bin en la siguiente sesion.
+*/
+int pilotoBinATxt(const void* dato, FILE* archTxt)
+{
+    const Piloto* p = (const Piloto*)dato;
 
+    if(!dato || !archTxt)
+        return ERR_ARCH;
+
+    fprintf(archTxt, "%u%c%s%c%s%c%u%c%u%c%c%c%llu\n",
+            p->id, SEP_TXT,
+            p->nombre, SEP_TXT,
+            p->nacionalidad, SEP_TXT,
+            p->id_escuderia, SEP_TXT,
+            p->puntos_acumulados,SEP_TXT,
+            p->estado, SEP_TXT,
+            p->fechaNacimiento);
+
+    return TODO_OK;
+}
 /**
  * cargarVectorPilotoActivos
  * Recorre el .bin de pilotos e inserta en vIds (ordenado)

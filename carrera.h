@@ -35,8 +35,13 @@ int registrarCarreraAleatoria(const char* rutaCarrera, const char* rutaPiloto, C
 int registrarCarreraManual(const char* rutaCarrera, const char* rutaPiloto, Comparar comparar, const Puntos* pts);
 int cargarResultadosCarreraAleatorios(const char* rutaPiloto, Carrera* nueva, Comparar comparar, const Puntos* pts);
 int generarIdCarrera(FILE* fCarrera);
+int carreraBinATxt(const void* dato, FILE* archTxt);
+
+//int recalcularPuntosPilotosOld(const char* rutaCarrera, const char* rutaPiloto);
+/* Recalculo completo: usar despues de baja/modificacion de carrera */
 int recalcularPuntosPilotos(const char* rutaCarrera, const char* rutaPiloto);
-int recalcularPuntosPilotos_old(const char* rutaCarrera, const char* rutaPiloto);
+/* Incremental (Funcionalidad D): aplica solo los puntos de la ultima carrera guardada */
+int aplicarPuntosUltimaCarrera(const char* rutaCarrera, const char* rutaPiloto);
 int exportarCarrerasTxt(const char* rutaBin, const char* rutaTxtExportado);
 
 /**Puntero a funcion**/

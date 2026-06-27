@@ -129,9 +129,12 @@ int trozarEscuderiaTxt(char* linea, void* reg)
 * escuderiaBinATxt  [BinATxt]
 * Escribe una Escuderia en formato .txt en el archivo de texto.
 */
-void escuderiaBinATxt(const void* dato, FILE* archTxt)
+int escuderiaBinATxt(const void* dato, FILE* archTxt)
 {
     const Escuderia* e = (const Escuderia*)dato;
+
+    if(!dato || !archTxt)
+        return ERR_ARCH;
 
     fprintf(archTxt, "%u%c%s%c%s%c%s%c%d\n",
             e->id,     SEP_TXT,
@@ -139,6 +142,8 @@ void escuderiaBinATxt(const void* dato, FILE* archTxt)
             e->nombre, SEP_TXT,
             e->pais,   SEP_TXT,
             e->estado);
+
+    return TODO_OK;
 }
 
 /**
@@ -239,7 +244,7 @@ int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
     printf("ID de la escuderia: ");
     scanf("%u", &id);
 
-    offset = buscarRegistroPorId(fBin, id, &escuderia, sizeof(Escuderia));
+    offset = buscarRegistroPorId(fBin, &id, &escuderia, sizeof(Escuderia), sizeof(unsigned));
 
     if (offset == -1L)
     {
@@ -310,7 +315,7 @@ int modificarEscuderia(const char* rutaBin)
     printf("ID de la escuderia: ");
     scanf("%u", &id);
 
-    offset = buscarRegistroPorId(fBin, id, &escuderia, sizeof(Escuderia));
+    offset = buscarRegistroPorId(fBin, &id, &escuderia, sizeof(Escuderia), sizeof(unsigned));
 
     if (offset == -1L)
     {
@@ -377,7 +382,7 @@ int esEscuderiaValida(const char* rutaBin, unsigned id)
     if (!fBin)
         return 0;
     Escuderia esc;
-    long offset = buscarRegistroPorId(fBin, id, &esc, sizeof(Escuderia));
+    long offset = buscarRegistroPorId(fBin, &id, &esc, sizeof(Escuderia), sizeof(unsigned));
     fclose(fBin);
     return (offset != -1L);
 }

@@ -42,6 +42,7 @@ int generarArchivoPilotosTxt(const char* rutaTxt);
 int cargarArchivoPilotos(const char* pathTxt, const char* rutaBin);
 size_t listarPilotos(const char* rutaBin);
 int cmp_desc(const void* a, const void* b);
+int trozarPilotoTxt(char* linea, void* reg);
 int RankingPiloto(const char* rutaBin);
 int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado);
 
@@ -49,6 +50,7 @@ int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado);
 int esPilotoActivos(const void* dato);
 int sumarPuntos(void* acumulador, const void* dato);
 int extraerIdPuntos(void* dest, const void* orig);
+int pilotoBinATxt(const void* dato, FILE* archTxt);
 int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar);
 int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia, unsigned idEscuderia);
 
