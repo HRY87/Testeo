@@ -21,7 +21,7 @@ int copiarCadena(char* dest, const char* src, size_t n)
     size_t      cont = 0;
 
     if (!d || !s)
-        return ERR_CAD;
+        return ERR_CADENA;
 
     while (*s && cont < n - 1)
     {
@@ -43,10 +43,10 @@ int leerCadena(char* dest, size_t n)
     char* pos;
 
     if (!dest || n == 0)
-        return ERR_CAD;
+        return ERR_CADENA;
 
     if (!fgets(dest, (int)n, stdin))
-        return ERR_CAD;
+        return ERR_CADENA;
 
     pos = dest;
     while (*pos && *pos != '\n')
@@ -104,7 +104,7 @@ int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem,
 
     fTxt = fopen(rutaTxt, "wt");
     if (!fTxt)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     pLec = (const char*)datos;
     for (i = 0; i < cantElem; i++)
@@ -129,13 +129,13 @@ int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar)
 
     fBin = fopen(rutaBin, "rb");
     if (!fBin)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     dato = malloc(tamElem);
     if (!dato)
     {
         fclose(fBin);
-        return ERR_MEM;
+        return ERR_MEMORIA;
     }
 
     while (fread(dato, tamElem, 1, fBin) == 1)
@@ -162,13 +162,13 @@ int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tam
 
     fTxt = fopen(rutaTxt, "rt");
     if (!fTxt)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     fBin = fopen(rutaBin, "wb");
     if (!fBin)
     {
         fclose(fTxt);
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     reg   = malloc(tamElem);
@@ -180,7 +180,7 @@ int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tam
         free(linea);
         fclose(fTxt);
         fclose(fBin);
-        return SIN_MEM;
+        return ERR_MEMORIA;
     }
 
     while (fgets(linea, TAM_LINEA, fTxt))
@@ -216,13 +216,13 @@ int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tam
 
     fBin = fopen(rutaBin, "rb");
     if (!fBin)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     fTxt = fopen(rutaTxt, "wt");
     if (!fTxt)
     {
         fclose(fBin);
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     reg = malloc(tamElem);
@@ -230,7 +230,7 @@ int convertirArchivoBinATxt(const char* rutaBin, const char* rutaTxt, size_t tam
     {
         fclose(fBin);
         fclose(fTxt);
-        return ERR_MEM;
+        return ERR_MEMORIA;
     }
 
     while (fread(reg, tamElem, 1, fBin) == 1)

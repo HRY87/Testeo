@@ -141,7 +141,7 @@ int listarPilotos(const char* rutaBin)
  * ordena con qsort y muestra accediendo por offset.
  * Retorna TODO_OK, ERR_ARCH o ERR_MEM.
  */
-int RankingPiloto(const char* rutaBin)
+int rankingPiloto(const char* rutaBin)
 {
     FILE*      fBin;
     Piloto     pil;
@@ -153,7 +153,7 @@ int RankingPiloto(const char* rutaBin)
 
     fBin = fopen(rutaBin, "rb");
     if (!fBin)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     cap  = CAPACIDAD_MINIMA;
     n    = 0;
@@ -162,7 +162,7 @@ int RankingPiloto(const char* rutaBin)
     if (!refs)
     {
         fclose(fBin);
-        return ERR_MEM;
+        return ERR_MEMORIA;
     }
 
     offset = 0L;
@@ -178,7 +178,7 @@ int RankingPiloto(const char* rutaBin)
             {
                 free(refs);
                 fclose(fBin);
-                return ERR_MEM;
+                return ERR_MEMORIA;
             }
             refs = tmp;
         }
@@ -235,7 +235,7 @@ int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia,
 
     fEsc = fopen(rutaEscuderia, "rb");
     if (!fEsc)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     while (fread(&esc, sizeof(Escuderia), 1, fEsc) == 1 && !encontrado)
     {
@@ -247,7 +247,7 @@ int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia,
     if (!encontrado)
     {
         printf("[!] Escuderia con ID %u no encontrada.\n", idEscuderia);
-        return NO_ENCONTRADO;
+        return ERR_NO_ENCONTRADO;
     }
 
     if (esc.estado != ESTADO_ESCUDERIA_ACTIVA)
@@ -258,7 +258,7 @@ int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia,
 
     fPil = fopen(rutaPiloto, "rb");
     if (!fPil)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     printf("\n");
     printf("=============================================================\n");
@@ -361,7 +361,7 @@ int pilotoBinATxt(const void* dato, FILE* archTxt)
     const Piloto* p = (const Piloto*)dato;
 
     if (!dato || !archTxt)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     fprintf(archTxt, "%u%c%s%c%s%c%u%c%u%c%c%c%llu\n",
             p->id,                SEP_TXT,
@@ -454,7 +454,7 @@ int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar compa
 
     fPiloto = fopen(rutaBin, "rb");
     if (!fPiloto)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     while (fread(&piloto, sizeof(Piloto), 1, fPiloto) == 1)
     {
@@ -463,6 +463,56 @@ int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar compa
     }
 
     fclose(fPiloto);
+    return TODO_OK;
+}
+
+/**
+ * exportarPilotosTxt
+ * Lee el .dat de pilotos y escribe cada registro en formato .txt
+ * en el archivo de texto de exportacion: id,nombre,estado,id_escuderia,puntos
+ * Retorna TODO_OK o ERR_ARCH.
+ */
+int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado)
+{
+    FILE* fBin = fopen(rutaBin, "rb");
+
+    if(!fBin)
+    {
+        printf("[!] No se encontro la base de datos de pilotos.\n");
+        return ERR_ARCHIVO;
+    }
+
+    FILE* fTxt = fopen(rutaTxtExportado, "wt");
+
+    if(!fTxt)
+    {
+        printf("[!] No se pudo crear el archivo de exportacion.\n");
+        fclose(fBin);
+        return 0;
+    }
+
+    Piloto p;
+    int registrosExportados = 0;
+
+    while(fread(&p, sizeof(Piloto), 1, fBin))
+    {
+        fprintf(fTxt, "%u%c%s%c%s%c%u%c%u%c%c%c%llu\n",
+                p.id,                SEP_TXT,
+                p.nombre,            SEP_TXT,
+                p.nacionalidad,      SEP_TXT,
+                p.id_escuderia,      SEP_TXT,
+                p.puntos_acumulados, SEP_TXT,
+                p.estado,            SEP_TXT,
+                p.fechaNacimiento);
+
+        registrosExportados++;
+    }
+
+    fclose(fBin);
+    fclose(fTxt);
+
+    printf("[OK] Se exportaron %d pilotos al archivo de texto.\n", registrosExportados);
+
     return TODO_OK;
 }
 
@@ -494,7 +544,7 @@ int altaPiloto(const char* rutaBin)
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de pilotos.\n");
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     fwrite(&nuevo, sizeof(Piloto), 1, fBin);
@@ -526,7 +576,7 @@ int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de pilotos.\n");
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     printf("\n--- BAJA DE PILOTO ---\n");
@@ -539,7 +589,7 @@ int bajaPiloto(const char* rutaBin, const char* rutaBajasTxt)
     {
         fclose(fBin);
         printf("[!] Piloto con ID %u no encontrado.\n", id);
-        return NO_ENCONTRADO;
+        return ERR_NO_ENCONTRADO;
     }
 
     if (piloto.estado != ESTADO_ACTIVO_PILOTO)
@@ -589,7 +639,7 @@ int modificarPiloto(const char* rutaBin)
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de pilotos.\n");
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     printf("\n--- MODIFICAR PILOTO ---\n");
@@ -602,7 +652,7 @@ int modificarPiloto(const char* rutaBin)
     {
         fclose(fBin);
         printf("[!] Piloto con ID %u no encontrado.\n", id);
-        return NO_ENCONTRADO;
+        return ERR_NO_ENCONTRADO;
     }
 
     mostrarCamposPiloto(&piloto);
@@ -674,7 +724,7 @@ int modificarPiloto(const char* rutaBin)
             while (nuevoEstado < 1 || nuevoEstado > 3);
 
             piloto.estado = ((nuevoEstado == 1) ? ESTADO_ACTIVO_PILOTO
-                          :(nuevoEstado == 2) ? ESTADO_RETIRADO_PILOTO: ESTADO_SUSPENDIDO_PILOTO);
+                             :(nuevoEstado == 2) ? ESTADO_RETIRADO_PILOTO: ESTADO_SUSPENDIDO_PILOTO);
             break;
 
         default:

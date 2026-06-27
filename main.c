@@ -37,7 +37,7 @@ int main()
             menuCarrera(&vPuntos);
             break;
         case 3:
-            RankingPiloto(RUTA_PILOTO_BIN);
+            rankingPiloto(RUTA_PILOTO_BIN);
             break;
         case 4:
             menuPilotosPorEscuderia();

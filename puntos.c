@@ -36,7 +36,7 @@ int guardarConfigPuntos(const char* ruta, const Puntos* vPuntos)
 
     f = fopen(ruta, "wt");
     if (!f)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     for (i = 0; i < vPuntos->tabla.ce; i++)
     {

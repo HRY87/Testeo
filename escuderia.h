@@ -29,15 +29,15 @@ typedef struct
 int generarArchivoEscuderiasTxt(const char* rutaTxt);
 
 /* Punteros a funcion del TDA Escuderia */
-int  trozarEscuderiaTxt  (char* linea, void* reg);          /* TxtABin */
-int  escuderiaBinATxt    (const void* dato, FILE* archTxt); /* BinATxt */
-int  escribirEscuderiaTxt(void* archTxt, const void* dato); /* Accion  */
-void mostrarEscuderia    (const void* dato);                /* Mostrar */
-int  esEscuderiaActiva   (const void* dato);                /* Filter  */
+int trozarEscuderiaTxt(char* linea, void* reg);          /* TxtABin */
+int escuderiaBinATxt(const void* dato, FILE* archTxt); /* BinATxt */
+int escribirEscuderiaTxt(void* archTxt, const void* dato); /* Accion  */
+void mostrarEscuderia(const void* dato);                /* Mostrar */
+int esEscuderiaActiva(const void* dato);                /* Filter  */
 
 /* ABM */
-int altaEscuderia     (const char* rutaBin);
-int bajaEscuderia     (const char* rutaBin, const char* rutaBajasTxt);
+int altaEscuderia(const char* rutaBin);
+int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt);
 int modificarEscuderia(const char* rutaBin);
 
 /* Validacion: retorna 1 si el id existe en el .bin, 0 si no. */

@@ -3,7 +3,6 @@
 #include <string.h>
 #include "escuderia.h"
 #include "utilidades.h"
-
 /* =========================================================
    Funciones estaticas auxiliares
    ========================================================= */
@@ -123,7 +122,7 @@ int escuderiaBinATxt(const void* dato, FILE* archTxt)
     const Escuderia* e = (const Escuderia*)dato;
 
     if (!dato || !archTxt)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     fprintf(archTxt, "%u%c%s%c%s%c%s%c%d\n",
             e->id,     SEP_TXT,
@@ -193,7 +192,7 @@ int altaEscuderia(const char* rutaBin)
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de escuderias.\n");
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     fwrite(&nueva, sizeof(Escuderia), 1, fBin);
@@ -223,7 +222,7 @@ int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de escuderias.\n");
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     printf("\n--- BAJA DE ESCUDERIA ---\n");
@@ -236,7 +235,7 @@ int bajaEscuderia(const char* rutaBin, const char* rutaBajasTxt)
     {
         fclose(fBin);
         printf("[!] Escuderia con ID %u no encontrada.\n", id);
-        return NO_ENCONTRADO;
+        return ERR_NO_ENCONTRADO;
     }
 
     if (escuderia.estado == ESTADO_ESCUDERIA_INACTIVA)
@@ -293,7 +292,7 @@ int modificarEscuderia(const char* rutaBin)
     if (!fBin)
     {
         printf("[!] No se pudo abrir el archivo de escuderias.\n");
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     printf("\n--- MODIFICAR ESCUDERIA ---\n");
@@ -306,7 +305,7 @@ int modificarEscuderia(const char* rutaBin)
     {
         fclose(fBin);
         printf("[!] Escuderia con ID %u no encontrada.\n", id);
-        return NO_ENCONTRADO;
+        return ERR_NO_ENCONTRADO;
     }
 
     mostrarCamposEscuderia(&escuderia);

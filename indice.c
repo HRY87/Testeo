@@ -6,17 +6,17 @@
 #include "vector.h"
 
 /* =========================================================
-   Auxiliares estaticas
+                    Auxiliares estaticas
    ========================================================= */
 
 /**
- * cmpEntradaId  [Comparar  static]
+ * cmpEntradaId [Comparar  static]
  * Compara dos IndiceEntrada por id. Retorna -1, 0 o 1.
  */
-static int cmpEntradaId(const void* a, const void* b)
+static int compararIndice(const void* a, const void* b)
 {
-    unsigned ia = ((const IndiceEntrada*)a)->id;
-    unsigned ib = ((const IndiceEntrada*)b)->id;
+    unsigned ia = ((const Indice*)a)->id;
+    unsigned ib = ((const Indice*)b)->id;
 
     if (ia < ib) return -1;
     if (ia > ib) return  1;
@@ -33,7 +33,7 @@ static int guardarIdxDesdeVector(const char* rutaIdx, tVector* v)
     FILE* f = fopen(rutaIdx, "wb");
 
     if (!f)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     fwrite(v->vec, v->tamElem, v->ce, f);
     fclose(f);
@@ -53,21 +53,21 @@ static int guardarIdxDesdeVector(const char* rutaIdx, tVector* v)
  */
 int construirIndicePilotos(const char* rutaDat, const char* rutaIdx)
 {
-    FILE*         fDat;
-    Piloto        pil;
-    tVector       vIdx;
-    IndiceEntrada entrada;
-    long          offset;
-    int           resp;
+    FILE* fDat;
+    Piloto pil;
+    tVector vIdx;
+    Indice entrada;
+    long offset;
+    int resp;
 
     fDat = fopen(rutaDat, "rb");
     if (!fDat)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
-    if (crearVector(&vIdx, sizeof(IndiceEntrada), CAPACIDAD_MINIMA) != TODO_OK)
+    if (crearVector(&vIdx, sizeof(Indice), CAPACIDAD_MINIMA) != TODO_OK)
     {
         fclose(fDat);
-        return SIN_MEM;
+        return ERR_MEMORIA;
     }
 
     offset = 0L;
@@ -75,7 +75,7 @@ int construirIndicePilotos(const char* rutaDat, const char* rutaIdx)
     {
         entrada.id     = pil.id;
         entrada.offset = offset;
-        insertarVectorOrd(&vIdx, &entrada, cmpEntradaId);
+        insertarVectorOrd(&vIdx, &entrada, compararIndice);
         offset += (long)sizeof(Piloto);
     }
     fclose(fDat);
@@ -95,12 +95,12 @@ int construirIndicePilotos(const char* rutaDat, const char* rutaIdx)
  */
 long buscarPilotoPorIndice(const char* rutaIdx, FILE* fDat, unsigned id, Piloto* dest)
 {
-    tVector        vIdx;
-    IndiceEntrada  clave;
-    IndiceEntrada* encontrada;
-    long           resultado;
+    tVector vIdx;
+    Indice  clave;
+    Indice* encontrada;
+    long resultado;
 
-    if (crearVector(&vIdx, sizeof(IndiceEntrada), CAPACIDAD_MINIMA) != TODO_OK)
+    if (crearVector(&vIdx, sizeof(Indice), CAPACIDAD_MINIMA) != TODO_OK)
         return -1L;
 
     if (cargarVectorDesdeBin(rutaIdx, &vIdx) != TODO_OK)
@@ -112,7 +112,7 @@ long buscarPilotoPorIndice(const char* rutaIdx, FILE* fDat, unsigned id, Piloto*
     clave.id     = id;
     clave.offset = 0L;
 
-    encontrada = (IndiceEntrada*)busquedaBinariaVector(&vIdx, &clave, cmpEntradaId);
+    encontrada = (Indice*)busquedaBinariaVector(&vIdx, &clave, compararIndice);
     resultado  = (encontrada != NULL) ? encontrada->offset : -1L;
 
     destruirVector(&vIdx);
@@ -133,18 +133,18 @@ long buscarPilotoPorIndice(const char* rutaIdx, FILE* fDat, unsigned id, Piloto*
  */
 int insertarEntradaIndice(const char* rutaIdx, unsigned id, long offset)
 {
-    tVector       vIdx;
-    IndiceEntrada nueva;
-    int           resp;
+    tVector vIdx;
+    Indice nueva;
+    int resp;
 
-    if (crearVector(&vIdx, sizeof(IndiceEntrada), CAPACIDAD_MINIMA) != TODO_OK)
-        return SIN_MEM;
+    if (crearVector(&vIdx, sizeof(Indice), CAPACIDAD_MINIMA) != TODO_OK)
+        return ERR_MEMORIA;
 
     cargarVectorDesdeBin(rutaIdx, &vIdx);
 
     nueva.id     = id;
     nueva.offset = offset;
-    insertarVectorOrd(&vIdx, &nueva, cmpEntradaId);
+    insertarVectorOrd(&vIdx, &nueva, compararIndice);
 
     resp = guardarIdxDesdeVector(rutaIdx, &vIdx);
     destruirVector(&vIdx);
@@ -163,29 +163,29 @@ static unsigned idAExcluir = 0;
 
 static int filtroExcluirId(const void* dato)
 {
-    return (((const IndiceEntrada*)dato)->id != idAExcluir);
+    return (((const Indice*)dato)->id != idAExcluir);
 }
 
 int eliminarEntradaIndice(const char* rutaIdx, unsigned id)
 {
     tVector vOrigen;
     tVector vDestino;
-    int     resp;
+    int resp;
 
-    if (crearVector(&vOrigen,  sizeof(IndiceEntrada), CAPACIDAD_MINIMA) != TODO_OK)
-        return SIN_MEM;
+    if (crearVector(&vOrigen,  sizeof(Indice), CAPACIDAD_MINIMA) != TODO_OK)
+        return ERR_MEMORIA;
 
-    if (crearVector(&vDestino, sizeof(IndiceEntrada), CAPACIDAD_MINIMA) != TODO_OK)
+    if (crearVector(&vDestino, sizeof(Indice), CAPACIDAD_MINIMA) != TODO_OK)
     {
         destruirVector(&vOrigen);
-        return SIN_MEM;
+        return ERR_MEMORIA;
     }
 
     if (cargarVectorDesdeBin(rutaIdx, &vOrigen) != TODO_OK)
     {
         destruirVector(&vOrigen);
         destruirVector(&vDestino);
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
     }
 
     idAExcluir = id;

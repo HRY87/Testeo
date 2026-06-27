@@ -18,8 +18,8 @@
 
 
 /* Columnas de la matriz resultados[][] */
-#define COL_ID_PILOTO   0
-#define COL_PUNTOS      1
+#define COL_ID_PILOTO               0
+#define COL_PUNTOS                  1
 
 typedef struct
 {
@@ -44,7 +44,7 @@ int generarArchivoPilotosTxt(const char* rutaTxt);
 
 /* Listado */
 int listarPilotos(const char* rutaBin);
-int RankingPiloto(const char* rutaBin);
+int rankingPiloto(const char* rutaBin);
 int listarPilotosPorEscuderia(const char* rutaPiloto, const char* rutaEscuderia, unsigned idEscuderia);
 
 /* Punteros a funcion del TDA Piloto */
@@ -59,6 +59,9 @@ int cmp_desc(const void* a, const void* b);             /* Comparar*/
 
 /* Utilitaria para simulacion de carreras */
 int cargarVectorPilotoActivos(const char* rutaBin, tVector* vIds, Comparar comparar);
+
+/*Exportar datos de temporada*/
+int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado);
 
 /* ABM */
 int altaPiloto(const char* rutaBin);

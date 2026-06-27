@@ -17,7 +17,7 @@ int crearVector(tVector* v, size_t tamElem, size_t capacidad)
     v->vec = malloc(tamElem * capacidad);
 
     if (!v->vec)
-        return SIN_MEM;
+        return ERR_MEMORIA;
 
     v->ce      = 0;
     v->tamElem = tamElem;
@@ -33,7 +33,7 @@ int redimensionarVector(tVector* v, size_t nuevaCap)
     if(!nVec)
     {
         free(nVec);
-        return SIN_MEM;
+        return ERR_MEMORIA;
     }
 
     //printf("Redimension de %lu a %lu\n", (long unsigned)v->tope, (long unsigned)nuevaCap);
@@ -74,8 +74,8 @@ int insertarVectorOrd(tVector* v, void* dato, Comparar cmp)
 
     if (v->ce == v->cap)
     {
-        if(redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == SIN_MEM)
-            return SIN_MEM;
+        if(redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == ERR_MEMORIA)
+            return ERR_MEMORIA;
     }
 
     act = (char*)v->vec;
@@ -105,8 +105,8 @@ int insertarFinalVector(tVector* v, const void* dato)
 {
     if (v->ce == v->cap)
     {
-        if(redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == SIN_MEM)
-            return SIN_MEM;
+        if(redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == ERR_MEMORIA)
+            return ERR_MEMORIA;
     }
 
     memcpy((char*)v->vec + (v->ce * v->tamElem), dato, v->tamElem);
@@ -178,7 +178,7 @@ int cargarVectorDesdeBin(const char* rutaBin, tVector* v)
 
     fBin = fopen(rutaBin, "rb");
     if (!fBin)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     act = (char*)v->vec + (v->ce * v->tamElem);
 
@@ -188,10 +188,10 @@ int cargarVectorDesdeBin(const char* rutaBin, tVector* v)
 
         if (v->ce == v->cap)
         {
-            if (redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == SIN_MEM)
+            if (redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == ERR_MEMORIA)
             {
                 fclose(fBin);
-                return SIN_MEM;
+                return ERR_MEMORIA;
             }
         }
 
@@ -215,7 +215,7 @@ int guardarVectorEnBin(const char* rutaBin, tVector* v)
 
     fBin = fopen(rutaBin, "wb");
     if (!fBin)
-        return ERR_ARCH;
+        return ERR_ARCHIVO;
 
     act = (char*)v->vec;
     fin = (char*)v->vec + (v->ce * v->tamElem);
@@ -246,7 +246,7 @@ int filtrarVector(tVector* origen, tVector* destino, Filter filtro)
     char* fin;
 
     if (!origen || !destino || !filtro)
-        return SIN_MEM;
+        return ERR_MEMORIA;
 
     act = (char*)origen->vec;
     fin = (char*)origen->vec + (origen->ce * origen->tamElem);
@@ -278,7 +278,7 @@ int reducirVector(tVector* v, void* acumulador, Reduce reducir)
     char* fin;
 
     if (!v || !acumulador || !reducir)
-        return SIN_MEM;
+        return ERR_MEMORIA;
 
     act = (char*)v->vec;
     fin = (char*)v->vec + (v->ce * v->tamElem);
@@ -305,7 +305,7 @@ int mapearVector(tVector* origen, tVector* destino, size_t tamDestino, Map mapea
     char* actDestino;
 
     if (!origen || !destino || !mapear)
-        return SIN_MEM;
+        return ERR_MEMORIA;
 
     if (origen->ce > destino->cap)
         return VEC_LLENO;

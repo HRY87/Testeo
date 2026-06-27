@@ -64,7 +64,7 @@ void menuEstadisticas(void)
     case 1:
         printf("Ingrese ID del piloto: ");
         scanf("%u", &id_piloto);
-        if (calcularEstadisticasPiloto(RUTA_CARRERA_BIN, id_piloto, &stats) == ERR_ARCH)
+        if (calcularEstadisticasPiloto(RUTA_CARRERA_BIN, id_piloto, &stats) == ERR_ARCHIVO)
         {
             printf("[!] Error al abrir el archivo.\n");
             break;
@@ -171,13 +171,15 @@ void exportarTemporada(void)
     printf("        EXPORTANDO DATOS DEL CAMPEONATO      \n");
     printf("=============================================\n");
     printf("[*] Exportando pilotos...\n");
-    convertirArchivoBinATxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT, sizeof(Piloto), pilotoBinATxt);
+    exportarPilotosTxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT);
+    //convertirArchivoBinATxt(RUTA_PILOTO_BIN, RUTA_PILOTO_EXP_TXT, sizeof(Piloto), pilotoBinATxt);
 
     printf("[*] Exportando escuderias...\n");
     convertirArchivoBinATxt(RUTA_ESCUDERIA_BIN, RUTA_ESCUDERIA_EXP_TXT, sizeof(Escuderia), escuderiaBinATxt);
 
     printf("[*] Exportando historial de carreras...\n");
-    convertirArchivoBinATxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT, sizeof(Carrera), carreraBinATxt);
+    exportarCarrerasTxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT);
+    //convertirArchivoBinATxt(RUTA_CARRERA_BIN, RUTA_CARRERA_EXP_TXT, sizeof(Carrera), carreraBinATxt);
 
     printf("\n[OK] Exportacion completa de la temporada.\n");
     printf("=============================================\n\n");
