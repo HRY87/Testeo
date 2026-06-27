@@ -131,18 +131,30 @@ int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem,
  * Lee de a un registro por iteracion en el buffer 'dato'.
  * Retorna TODO_OK o ERR_ARCH si no pudo abrir el archivo.
  */
-int mostrarArchivoBinario(const char* rutaBin, void* dato, size_t tamElem, Mostrar mostrar)
+int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar)
 {
-    FILE* fBin = fopen(rutaBin, "rb");
+    void* dato;
+    FILE* fBin;
+
+    fBin = fopen(rutaBin, "rb");
 
     if(!fBin)
         return ERR_ARCH;
+
+    dato = malloc(tamElem);
+
+    if(!dato)
+    {
+        fclose(fBin);
+        return ERR_MEM;
+    }
 
     while(fread(dato, tamElem, 1, fBin) == 1)
     {
         mostrar(dato); /** Delega el formato de visualizacion al TDA */
     }
 
+    free(dato);
     fclose(fBin);
 
     return TODO_OK;
@@ -396,3 +408,4 @@ int archivoExiste(const char* ruta)
     }
     return 0;
 }
+

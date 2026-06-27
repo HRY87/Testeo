@@ -111,63 +111,7 @@ int generarArchivoPilotosTxt(const char* rutaTxt)
     return generarArchivoTexto(rutaTxt, lote, 11, sizeof(Piloto), escribirPilotoTxt);
 }
 
-/**
- * cargarArchivoPilotos
- * Lee el archivo de texto rutaTxt con fscanf en formato CSV:
- *   id,nombre,nacionalidad,id_escuderia,puntos,estado,fechaNacimiento
- * y escribe cada registro como binario en rutaBin.
- * Usa buffers intermedios para nombre y nacionalidad porque
- * fscanf no puede leer cadenas con espacios directo al struct.
- * Retorna la cantidad de registros escritos (0 si no pudo abrir).
- */
-int cargarArchivoPilotos(const char* rutaTxt, const char* rutaBin)
-{
-    Piloto piloto;
-    int camposLeidos = 0;
-    int total = 0;
 
-    char bufferNombre[TAM_NOMBRE_PILOTO];           // fscanf no puede leer directo a struct con espacios
-    char bufferNacionalidad[TAM_NACIONALIDAD];
-
-    FILE* fTxt = fopen(rutaTxt, "rt");
-    FILE* fBin = fopen(rutaBin, "wb");
-
-    if(!fTxt)
-        return total;
-
-    if(!fBin)
-    {
-        fclose(fTxt);
-        return total;
-    }
-
-    // formato CSV: id,nombre,nacionalidad,id_escuderia,puntos,estado,fechaNacimiento
-    camposLeidos = fscanf(fTxt,
-                          "%u,%29[^,],%29[^,],%u,%u ,%c,%llu\n",
-                          &piloto.id, bufferNombre, bufferNacionalidad,
-                          &piloto.id_escuderia, &piloto.puntos_acumulados,
-                          &piloto.estado,&piloto.fechaNacimiento);
-
-    while(camposLeidos == 7) // si no leyó los 7 campos, la linea es invalida o llego al fin
-    {
-        copiarCadena(piloto.nombre, bufferNombre, TAM_NOMBRE_PILOTO);
-        copiarCadena(piloto.nacionalidad, bufferNacionalidad, TAM_NACIONALIDAD);
-
-        fwrite(&piloto, sizeof(Piloto), 1, fBin); // escribe el registro binario
-        total++;
-
-        camposLeidos = fscanf(fTxt,
-                              "%u,%29[^,],%29[^,],%u,%u ,%c,%llu\n",
-                              &piloto.id, bufferNombre, bufferNacionalidad,
-                              &piloto.id_escuderia, &piloto.puntos_acumulados,
-                              &piloto.estado,&piloto.fechaNacimiento);
-    }
-
-    fclose(fTxt);
-    fclose(fBin);
-
-    return total;
-}
 
 /**
  * listarPilotos
@@ -175,36 +119,32 @@ int cargarArchivoPilotos(const char* rutaTxt, const char* rutaBin)
  * (ID | Nombre | Estado | Puntos) sin filtrar por estado.
  * Retorna la cantidad de registros listados.
  */
-size_t listarPilotos(const char* rutaBin)
+/**Muestra el listado completo de pilotos con encabezado de tabla, usando la funcion generica para recorrer el archivo**/
+int listarPilotos(const char* rutaBin)
 {
-    Piloto piloto;
-    size_t listados = 0;
-
-    FILE* fBin = fopen(rutaBin, "rb");
-
-    if(!fBin)
-        return listados;
+    int resp;
 
     printf("\n");
     printf("=============================================================\n");
     printf("  LISTADO DE PILOTOS - TEMPORADA\n");
     printf("=============================================================\n");
-    printf("%-4s  %-28s  %-10s  %s\n",
-           "ID", "Nombre", "Estado", "Puntos");
+    printf("%-4s  %-28s  %-10s  %s\n", "ID", "Nombre", "Estado", "Puntos");
     printf("-------------------------------------------------------------\n");
 
-    while(fread(&piloto, sizeof(Piloto), 1, fBin) == 1) // lee un registro por iteracion
-    {
-        printf("%-4u  %-28s  %-10c  %u\n",
-               piloto.id, piloto.nombre, piloto.estado, piloto.puntos_acumulados);
+    resp = mostrarArchivoBinario(rutaBin, sizeof(Piloto), mostrarPiloto);
 
-        listados++;
-    }
     printf("-------------------------------------------------------------\n");
 
-    fclose(fBin);
+    return resp;
+}
 
-    return listados;
+/**Muestra una fila de piloto con formato de tabla**/
+void mostrarPiloto(const void* dato)
+{
+    const Piloto* piloto = (const Piloto*)dato;
+
+    printf("%-4u  %-28s  %-10c  %u\n",
+           piloto->id, piloto->nombre, piloto->estado, piloto->puntos_acumulados);
 }
 
 /**

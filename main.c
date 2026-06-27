@@ -255,7 +255,6 @@ static void menuEstadisticas(void)
 static void menuCarrera(Puntos* pts)
 {
     int op;
-    Carrera carrera;
 
     printf("\n  +---------------------------+\n");
     printf("  |     REGISTRAR CARRERA     |\n");
@@ -272,13 +271,13 @@ static void menuCarrera(Puntos* pts)
     case 1:
         registrarCarreraAleatoria(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, compararUnsigned, pts);
         aplicarPuntosUltimaCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
-        mostrarArchivoBinario(RUTA_CARRERA_BIN, &carrera, sizeof(Carrera), mostrarCarrera);
+        mostrarArchivoBinario(RUTA_CARRERA_BIN, sizeof(Carrera), mostrarCarrera);
         break;
 
     case 2:
         registrarCarreraManual(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN, compararUnsigned, pts);
         aplicarPuntosUltimaCarrera(RUTA_CARRERA_BIN, RUTA_PILOTO_BIN);
-        mostrarArchivoBinario(RUTA_CARRERA_BIN, &carrera, sizeof(Carrera), mostrarCarrera);
+        mostrarArchivoBinario(RUTA_CARRERA_BIN, sizeof(Carrera), mostrarCarrera);
         break;
 
     case 0:

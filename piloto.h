@@ -39,14 +39,14 @@ typedef struct {
 
 
 int generarArchivoPilotosTxt(const char* rutaTxt);
-int cargarArchivoPilotos(const char* pathTxt, const char* rutaBin);
-size_t listarPilotos(const char* rutaBin);
-int cmp_desc(const void* a, const void* b);
-int trozarPilotoTxt(char* linea, void* reg);
+int listarPilotos(const char* rutaBin);
 int RankingPiloto(const char* rutaBin);
 int exportarPilotosTxt(const char* rutaBin, const char* rutaTxtExportado);
 
 /**Funciones para manejo de datos TDA vector**/
+void mostrarPiloto(const void* dato);
+int cmp_desc(const void* a, const void* b);
+int trozarPilotoTxt(char* linea, void* reg);
 int esPilotoActivos(const void* dato);
 int sumarPuntos(void* acumulador, const void* dato);
 int extraerIdPuntos(void* dest, const void* orig);

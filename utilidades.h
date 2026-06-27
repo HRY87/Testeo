@@ -35,7 +35,7 @@ void limpiarBuffer(void);
 
 /**Funciones para Archivos**/
 int generarArchivoTexto(const char* rutaTxt, const void* datos, size_t cantElem, size_t tamElem, Accion accion);
-int mostrarArchivoBinario(const char* rutaBin, void* dato, size_t tamElem, Mostrar mostrar);
+int mostrarArchivoBinario(const char* rutaBin, size_t tamElem, Mostrar mostrar);
 
 /* Convierte un .txt a .bin usando la funcion txtABin del TDA */
 int convertirArchivoTxtABin(const char* rutaTxt, const char* rutaBin, size_t tamElem, TxtABin txtABin);
