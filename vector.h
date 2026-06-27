@@ -3,11 +3,14 @@
 
 #include "utilidades.h"
 
-#define SIN_MEM     1
-#define DUPLICADO   2
-#define VEC_LLENO   3
-#define VEC_VACIO   4
-#define NO_EXISTE   5
+#define SIN_MEM                 1
+#define DUPLICADO               2
+#define VEC_LLENO               3
+#define VEC_VACIO               4
+#define NO_EXISTE               5
+
+#define TOPE_INICIAL            4
+#define FACTOR_INCREMENTAL      2
 
 #define ES_VECTOR_LLENO(X,Y)    ((X) == (Y) ? VEC_LLENO : 0)
 #define ES_VECTOR_VACIO(X)      ((X) == 0 ? VEC_VACIO : 0)
@@ -21,11 +24,12 @@ typedef struct
     void* vec; //Memoria donde estan los elementos
     size_t ce; //Cantidad de elementos
     size_t tamElem; //Tamanio de cada elemento
-    size_t tope; //Capacidad maxima
+    size_t cap; //Capacidad maxima
 }tVector;
 
 int crearVector(tVector* v, size_t tamElem, size_t capacidad);
 void destruirVector(tVector* v);
+int redimensionarVector(tVector* v, size_t nuevaCap);
 int insertarVectorOrd(tVector* v, void* dato, Comparar cmp);
 int insertarFinalVector(tVector* v, const void* dato);
 void* busquedaBinariaVector(tVector* v, void* clave, Comparar cmp);

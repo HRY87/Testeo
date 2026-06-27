@@ -21,7 +21,7 @@ int crearVector(tVector* v, size_t tamElem, size_t capacidad)
 
     v->ce = 0;
     v->tamElem = tamElem;
-    v->tope = capacidad;
+    v->cap = capacidad;
 
     return TODO_OK;
 }
@@ -38,9 +38,27 @@ void destruirVector(tVector* v)
 
     v->ce = 0;
     v->tamElem = 0;
-    v->tope = 0;
+    v->cap = 0;
 }
 
+
+int redimensionarVector(tVector* v, size_t nuevaCap)
+{
+    void* nVec = realloc(v->vec, nuevaCap * v->tamElem);
+
+    if(!nVec)
+    {
+        free(nVec);
+        return SIN_MEM;
+    }
+
+    //printf("Redimension de %lu a %lu\n", (long unsigned)v->tope, (long unsigned)nuevaCap);
+
+    v->vec = nVec;
+    v->cap = nuevaCap;
+
+    return TODO_OK;
+}
 /**
  * insertarVectorOrd
  * Inserta 'dato' manteniendo el vector ordenado segun el criterio
@@ -57,8 +75,11 @@ int insertarVectorOrd(tVector* v, void* dato, Comparar cmp)
     char* act = (char*)v->vec;
     char* fin = (char*)v->vec + (v->ce * v->tamElem);
 
-    if(v->ce == v->tope)
-        return VEC_LLENO;
+    if(v->ce == v->cap)
+    {
+        if(redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == SIN_MEM)
+            return SIN_MEM;
+    }
 
      /** Busca la posicion donde dato debe insertarse */
     while(act < fin && cmp(dato, act) > 0)
@@ -87,8 +108,11 @@ int insertarVectorOrd(tVector* v, void* dato, Comparar cmp)
  */
 int insertarFinalVector(tVector* v, const void* dato)
 {
-    if (v->ce == v->tope)
-        return VEC_LLENO;
+    if(v->ce == v->cap)
+    {
+        if(redimensionarVector(v, v->cap * FACTOR_INCREMENTAL) == SIN_MEM)
+            return SIN_MEM;
+    }
 
     memcpy((char*)v->vec + (v->ce * v->tamElem), dato, v->tamElem);
     v->ce++;
@@ -154,7 +178,7 @@ void* obtenerElementoVector(tVector* v, size_t pos)
 int cargarVectorDesdeBin(const char* rutaBin, tVector* v)
 {
     char* act = (char*)v->vec;
-    char* fin = (char*)v->vec + (v->tope * v->tamElem);
+    char* fin = (char*)v->vec + (v->cap * v->tamElem);
 
     FILE* fBin = fopen(rutaBin, "rb");
 
@@ -221,7 +245,7 @@ int filtrarVector(tVector* origen, tVector* destino, Filter filtro)
     {
         if(filtro(act))
         {
-            if(destino->ce == destino->tope)
+            if(destino->ce == destino->cap)
                 return VEC_LLENO;
 
             memcpy((char*)destino->vec + (destino->ce * destino->tamElem), act, destino->tamElem);
@@ -277,7 +301,7 @@ int mapearVector(tVector* origen, tVector* destino, size_t tamDestino, Map mapea
     if(!origen || !destino || !mapear)
         return SIN_MEM;
 
-    if(origen->ce > destino->tope)
+    if(origen->ce > destino->cap)
         return VEC_LLENO;
 
     actOrigen  = (char*)origen->vec;
